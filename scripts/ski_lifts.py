@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import json
 import math
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -31,23 +33,66 @@ def distance(a, b) -> float:
     return math.hypot((a[0] - b[0])*111132, (a[1] - b[1])*78100)
 
 
+OVERPASS_SERVERS = (
+    "https://overpass.private.coffee/api/interpreter",
+    "https://overpass-api.de/api/interpreter",
+    "https://lz4.overpass-api.de/api/interpreter",
+)
+
+
+def _fetch_osm_lifts() -> dict:
+    """Try multiple current OSM mirrors; a transient 502 is not bad data."""
+    query = ('[out:json][timeout:35];'
+             'way["aerialway"~"^(gondola|chair_lift|mixed_lift)$"]'
+             f'({BBOX[0]},{BBOX[1]},{BBOX[2]},{BBOX[3]});out geom;')
+    failures = []
+    for endpoint in OVERPASS_SERVERS:
+        for attempt in range(2):
+            try:
+                # Small, rate-limited query; do not retry forever or
+                # treat HTTP 502/429/504 as evidence that a lift is absent.
+                body = urllib.parse.urlencode({"data": query}).encode("utf-8")
+                request = urllib.request.Request(
+                    endpoint, data=body,
+                    headers={
+                        "User-Agent": "RealEarth2024 MSFS scenery (OSM/ODbL)",
+                        "Content-Type": "application/x-www-form-urlencoded",
+                        "Accept": "application/json",
+                    },
+                    method="POST",
+                )
+                with urllib.request.urlopen(request, timeout=32) as response:
+                    content = response.read(2_000_001)
+                if len(content) > 2_000_000:
+                    raise ValueError("Overpass returned an oversized payload")
+                obj = json.loads(content)
+                if not isinstance(obj, dict) or not isinstance(obj.get("elements"), list):
+                    raise ValueError("Overpass returned an invalid JSON schema")
+                print("Overpass OK:", endpoint, len(obj["elements"]), "mapped ways")
+                return obj
+            except (urllib.error.HTTPError, urllib.error.URLError, OSError,
+                    ValueError, TimeoutError) as exc:
+                failures.append(f"{endpoint}: {type(exc).__name__} {exc}")
+                if attempt == 0:
+                    time.sleep(1.5)
+    raise RuntimeError(
+        "All Overpass mirrors failed: " + " | ".join(failures[-3:])
+    )
+
+
 def osm_route() -> list[tuple[float, float]]:
     CACHE.mkdir(parents=True, exist_ok=True)
     cached = CACHE / "pierrafort_osm.json"
     if cached.is_file():
-        payload = json.loads(cached.read_text(encoding="utf-8"))
+        try:
+            payload = json.loads(cached.read_text(encoding="utf-8"))
+            if not isinstance(payload.get("elements"), list):
+                raise ValueError("Cached route schema invalid")
+        except (OSError, ValueError, AttributeError):
+            cached.unlink(missing_ok=True)
+            payload = _fetch_osm_lifts()
     else:
-        query = ('[out:json][timeout:45];'
-                 'way["aerialway"~"^(gondola|chair_lift|mixed_lift)$"]'
-                 f'({BBOX[0]},{BBOX[1]},{BBOX[2]},{BBOX[3]});out geom;')
-        url = ("https://overpass-api.de/api/interpreter?"+
-               urllib.parse.urlencode({"data": query}))
-        request = urllib.request.Request(url, headers={
-            "User-Agent": "RealEarth2024/0.1.5 (real ski routes, ODbL attribution)"
-        })
-        with urllib.request.urlopen(request, timeout=65) as r:
-            payload = json.loads(r.read(2_000_000))
-        cached.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+        payload = _fetch_osm_lifts()
 
     routes = []
     for w in payload.get("elements", []):
@@ -73,6 +118,9 @@ def osm_route() -> list[tuple[float, float]]:
     pts = routes[0][1]
     if distance(pts[-1], BOTTOM_REFERENCE) < distance(pts[0], BOTTOM_REFERENCE):
         pts = list(reversed(pts))
+    # Cache only confirmed route data, never an erroneous service response.
+    if not cached.is_file():
+        cached.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
     print("Verified OSM Pierrafort route:", routes[0][2],
           routes[0][3], len(pts), "geometry vertices")
     return pts
