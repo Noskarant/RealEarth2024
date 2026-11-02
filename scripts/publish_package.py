@@ -40,7 +40,7 @@ def main() -> None:
         })
     (DIST / "layout.json").write_text(
         json.dumps({"content": content}, indent=2), encoding="utf-8")
-    print(f"published {DIST}: texture-free, {len(content)} entries")
+    print(f"published {DIST}: {len(list(DIST.rglob('*.KTX2')))} SDK KTX2 textures, {len(content)} entries")
 
 
 if __name__ == "__main__":

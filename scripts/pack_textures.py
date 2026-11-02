@@ -4,15 +4,18 @@ The pack (D:\\RealEarth2024\\assets\\valmorel_complete) is a set of generated,
 freely reusable 1024 px materials. It is not a photographic survey: these are
 stylised surfaces, so a textured building stays a category B reconstruction.
 
-Only the individually modelled core buildings use these textures; the merged
-clusters keep sampled flat colours (see fsgltf.write_gltf), which keeps the
-package small and makes a texture failure easy to contain.
+Both individual buildings and merged clusters use these source textures.
+The SDK must compile their PNG + XML sidecars into runtime KTX2 files.
 """
 from __future__ import annotations
 
 from pathlib import Path
 
-PACK = Path(r"D:\RealEarth2024\assets\valmorel_complete")
+from window_facades import bake_window_facades
+
+ROOT = Path(__file__).resolve().parents[1]
+PACK = ROOT / "assets" / "valmorel_complete"
+GENERATED = ROOT / "build" / "generated_window_facades"
 
 # pipeline material slot -> pack material name
 SLOT_TO_PACK = {
@@ -26,6 +29,19 @@ SLOT_TO_PACK = {
     "wall_brick_win": "masonry_beige",
     "wall_concrete": "plaster_light_grey",
     "wall_concrete_win": "plaster_light_grey",
+    # Bourg: illustrative materials, not matched to surveyed parcels.
+    "wall_plaster_ochre": "plaster_ochre",
+    "wall_plaster_ochre_win": "plaster_ochre",
+    "wall_plaster_cream": "plaster_cream",
+    "wall_plaster_cream_win": "plaster_cream",
+    "wall_plaster_rose": "plaster_rose",
+    "wall_plaster_rose_win": "plaster_rose",
+    "wall_plaster_warm_white": "plaster_warm_white",
+    "wall_plaster_warm_white_win": "plaster_warm_white",
+    "wall_wood_honey": "wood_honey_vertical",
+    "wall_wood_honey_win": "wood_honey_vertical",
+    "shutter_brown": "wood_shutters_brown",
+    "shop_frame": "metal_black",
     "roof_slate": "roof_lauze_grey",
     "roof_metal": "roof_metal_grey",
     "roof_tile": "roof_shingle_brown",
@@ -52,7 +68,9 @@ def pack_map() -> dict[str, Path]:
         out[slot] = png
     if missing:
         raise FileNotFoundError(f"texture pack incomplete: {sorted(set(missing))}")
-    return out
+    # Generate independent, glazed variants for clustered buildings. The
+    # source PNGs in assets/valmorel_complete are never modified.
+    return bake_window_facades(out, PACK, GENERATED)
 
 
 if __name__ == "__main__":
