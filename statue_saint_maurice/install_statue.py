@@ -67,7 +67,7 @@ def validate() -> None:
         raise ValueError("No confirmed monument GPS; refusing installation")
     manifest = json.loads((SRC / "manifest.json").read_text(encoding="utf-8-sig"))
     layout = json.loads((SRC / "layout.json").read_text(encoding="utf-8-sig"))
-    if manifest.get("package_version") != "0.1.1" or not layout.get("content"):
+    if manifest.get("package_version") != "0.1.2" or not layout.get("content"):
         raise ValueError("Incorrect package manifest or layout")
     if len(list(SRC.rglob("*.BGL"))) < 2:
         raise ValueError("Scenery placement BGL was not compiled")
