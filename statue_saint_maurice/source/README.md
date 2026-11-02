@@ -21,7 +21,7 @@ Ces points sont corrigés dans l'archive livrée dans la conversation :
 `vierge_saint_maurice_corrigee_MSFS2024.zip`.
 
 Les originaux et la géométrie sont conservés ; l'image a été convertie
-en RGB sans modifier sa couleur ni son mappage UV.
+en RGB sans modifier sa couleur ni son mappage UV. Le GLB fourni embarquait une texture 4096×4096, plus détaillée que le PNG externe 2048×2048. Une archive HD 4K distincte, `vierge_saint_maurice_HD_4K_MSFS2024.zip`, a été préparée pour préserver cette résolution originale. Le script accepte 2K et 4K.
 
 ## Organisation du dépôt
 
