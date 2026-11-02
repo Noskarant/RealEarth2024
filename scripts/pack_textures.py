@@ -37,6 +37,7 @@ SLOT_TO_PACK = {
     "wall_wood_honey": "wood_honey_vertical",
     "wall_wood_honey_win": "wood_honey_vertical",
     "shutter_brown": "wood_shutters_brown",
+    "shop_frame": "metal_black",
     "roof_slate": "roof_lauze_grey",
     "roof_metal": "roof_metal_grey",
     "roof_tile": "roof_shingle_brown",
