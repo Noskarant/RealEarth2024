@@ -114,42 +114,57 @@ def resolve_url(link: str) -> tuple[str, list[str]]:
     return final_url, candidates
 
 
+def manually_copy_pin():
+    print("Open the Google Maps link, right-click on the exact CENTRE")
+    print("of the monument base, and click its decimal GPS coordinates.")
+    raw = input("Paste latitude, longitude (or Enter to cancel): ").strip()
+    match = re.fullmatch(
+        r"\\s*(-?\\d+\\.\\d+)\\s*[,; ]\\s*(-?\\d+\\.\\d+)\\s*", raw
+    )
+    if match is None:
+        raise ValueError("No valid GPS coordinates were supplied")
+    point = parse_pair(match.group(1), match.group(2), "manual pin")
+    if point is None:
+        raise ValueError("Coordinates are outside Saint-Maurice area")
+    return point
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", default=DEFAULT_URL)
+    parser.add_argument("--non-interactive", action="store_true")
     parser.add_argument("--overwrite", action="store_true",
                         help="Permit updating a previously configured pin")
     args = parser.parse_args()
     try:
         final_url, candidates = resolve_url(args.url)
+        print("Google Maps destination:", final_url)
     except Exception as exc:
-        print("Unable to expand the Google Maps link from this PC:", exc)
-        print("Open the link in Google Maps, right-click the center of the")
-        print("monument pedestal, copy the latitude/longitude numbers,")
-        print("and enter them in statue_saint_maurice/placement.json.")
-        return 2
+        print("Unable to expand the Google Maps link:", exc)
+        candidates = []
 
-    print("Google Maps destination:", final_url)
     precise = []
     for url in candidates:
         precise.extend(precise_pairs(url))
     # Do not silently accept a different nearby camera position.
+    if precise:
+        lat, lon, source = precise[0]
+        if any(math.hypot((lat-lat2)*111_000, (lon-lon2)*78_000) > 35
+               for lat2, lon2, _ in precise[1:]):
+            print("Conflicting pinned positions in Google Maps:", precise)
+            precise = []
     if not precise:
         center = next((camera_pair(url) for url in candidates if camera_pair(url)), None)
         print("No reliable monument-pin coordinates in the shared URL.")
         if center:
             print("Map camera center only (NOT used):", center[:2])
-        print("Open the Google Maps link, right-click the CENTER OF THE ROUND")
-        print("TOWER BASE, and copy the latitude/longitude in decimal degrees.")
-        return 3
-
-    lat, lon, source = precise[0]
-    if any(math.hypot((lat-lat2)*111_000, (lon-lon2)*78_000) > 35
-           for lat2, lon2, _ in precise[1:]):
-        print("Conflicting pinned positions in Google Maps; refusing a guess:")
-        for coord in precise:
-            print(" -", coord)
-        return 4
+        if args.non_interactive:
+            return 3
+        try:
+            lat, lon, source = manually_copy_pin()
+        except ValueError as exc:
+            print(exc)
+            return 3
     if PLACEMENT.is_file():
         data = json.loads(PLACEMENT.read_text(encoding="utf-8"))
     else:
