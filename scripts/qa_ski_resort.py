@@ -15,6 +15,21 @@ def main() -> None:
     props = [p for p in placements if p.get("kind") == "ski_station_prop"]
     if types < 18 or len(chalets) < 8 or len(props) < 12:
         raise RuntimeError("Missing CC0 models/chalets/props in generated scenery")
+    lifts = [p for p in placements if p.get("kind", "").startswith("ski_lift_")]
+    if stats.get("mapped_lift_objects", 0) != len(lifts):
+        raise RuntimeError("Mapped lift object count mismatch")
+    if lifts:
+        rope = [p for p in lifts if p["kind"] == "ski_lift_cables"]
+        towers = [p for p in lifts if p["kind"] == "ski_lift_tower"]
+        cabins = [p for p in lifts if p["kind"] == "ski_lift_cabin"]
+        if len(rope) != 1 or len(towers) < 5 or len(cabins) < 4:
+            raise RuntimeError("Mapped gondola route has incomplete components")
+        for suffix in (".gltf", ".xml", ".bin"):
+            if not (MODEL_SRC / ("ski_pierrafort_static_cables"+suffix)).is_file():
+                raise RuntimeError("Missing mapped Pierrafort rope model")
+        if any(p.get("exclude_autogen") is not False for p in lifts):
+            raise RuntimeError("Gondola supports must not exclude autogen")
+
     replaced_ids = [p["building_id"] for p in chalets]
     if len(replaced_ids) != len(set(replaced_ids)):
         raise RuntimeError("Same IGN building replaced twice")
@@ -50,6 +65,7 @@ def main() -> None:
     print("CC0 library models:", types)
     print("Measured IGN building replacements:", len(chalets))
     print("Grounded ski resort props:", len(props))
+    print("Mapped Pierrafort lift components:", len(lifts), "(0 means map/elevation validation skipped)")
     print("Active distinct CC0 models:", len(seen))
     print("Note: original buildings/terrain are not overridden by props.")
     print("Note: SDK BGL compilation and in-game appearance are NOT verified here.")
