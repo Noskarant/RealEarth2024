@@ -51,7 +51,8 @@ def main() -> None:
     )
 
     candidate = min(
-        (b for b in detailed if 160 <= b.area <= 800),
+        (b for b in detailed if 160 <= b.area <= 800 and b.rect_fill >= 0.52
+         and b.floors >= 2 and b.wall_h >= 7.5),
         key=lambda b: (math.hypot(b.east, b.north), b.bid),
         default=None,
     )
