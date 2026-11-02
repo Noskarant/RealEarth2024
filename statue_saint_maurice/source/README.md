@@ -136,3 +136,55 @@ quatre LOD. **Encore à tester :** compilation Windows du package 0.1.1,
 taille du BGL de ModelLib et visibilité effective en jeu. Si toujours
 invisible, contrôler aussi le GPS exact en vol et l'activation dans
 Marketplace > My Library > Community.
+
+## V0.1.2 — terrain flottant, légères déchirures et orientation de la Vierge
+
+**Retour utilisateur, capture du 2 novembre 2026 :** le monument est désormais
+visible dans FS2024, mais il est posé sur un gros bloc vert de terrain
+photogrammétrique flottant et la Vierge est vue de profil. L'arcade de la tour
+est déjà orientée vers le point de vue et doit rester ainsi.
+
+**Analyse directe du modèle utilisateur :**
+- Le GLB original contient 297 014 sommets / 563 947 faces et mesure
+  12,2928 m en hauteur brute.
+- La masse du terrain environnant est un composant 3D distinct d'environ
+  99 712 sommets, qui s'étend sur près de 8 m de largeur.
+- Le pied réel du monument commence à Y=2,6754057 m dans ce fichier,
+  au-dessus du plan d'origine du modèle.
+- En conservant seulement les composants 3D qui montent au-delà de 3,55 m
+  et qui appartiennent à la tour, on obtient 189 482 sommets.
+- 91 trous topologiques extrêmement petits (bord à trois ou quatre arêtes)
+  sont refermés, soit 163 faces de réparation. L'arche majeure est préservée.
+- Le modèle source nettoyé comporte 357 173 triangles. Son pied est à Y=0 m.
+- L'analyse des composants distingue 11 630 sommets correspondant à la
+  figure de la Vierge seule. La rotation +90° de cette figure n'affecte donc
+  ni le cylindre ni l'arcade.
+
+**LOD source nettoyé testé hors SDK :** LOD00 34 669 sommets /
+61 298 triangles, LOD01 10 722 / 17 354, LOD02 3 394 / 4 785,
+LOD03 1 245 / 1 426. Les matériaux OPAQUE / texture 4K restent les mêmes.
+
+Le livrable autonome `CORRECTIF_MADONE_SOL_ORIENTATION_MSFS2024_v012.zip`
+est disponible dans la conversation : il transporte les **vrais fichiers
+BIN et glTF nettoyés** et un sélecteur compressé pour tourner la Vierge seule,
+sans avoir besoin d'installer SciPy/Trimesh sur le PC Windows.
+
+**Procédure :** fermer FS2024, extraire le ZIP n'importe où, double-cliquer
+`CORRIGER_MADONE_V012.bat`. Le lanceur :
+1. Vérifie le chemin déjà confirmé
+   `D:\\RealEarth2024\\vierge_saint_maurice_4K_GPS_installation\\statue_saint_maurice`
+   et l'empreinte SHA256 de la source ;
+2. Sauvegarde le .gltf/.bin et les scripts source originaux ;
+3. Remplace uniquement ces fichiers, conserve les coordonnées GPS et la
+   texture originale 4096×4096 ;
+4. Crée le package 0.1.2 avec ses quatre nouveaux LOD via le SDK Windows ;
+5. Valide les 2 BGL/1 KTX2, sauvegarde l'ancienne version Community et installe.
+
+**Deuxième lanceur :** `REGLER_ORIENTATION_MADONE.bat` demande une rotation
+de la statue seule (par exemple -90°, 0°, +90°, 180°), puis recompile et
+réinstalle sans toucher à l'orientation de la tour.
+
+**Important :** le +90° est un **premier essai**, pas un angle déterminé
+depuis le cap de la caméra (inconnu sur la capture). Le modèle nettoyé et les
+LOD ont été générés et contrôlés localement ; la compilation SDK v0.1.2
+et le résultat visuel en jeu restent à vérifier sur le PC utilisateur.
