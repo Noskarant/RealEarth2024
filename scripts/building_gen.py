@@ -162,23 +162,39 @@ def load_buildings() -> list[Building]:
         )
         _assign_style(b)
         apply_bourg_reference_style(b)
-        # Large multi-storey residences around Valmorel often combine a
-        # pale stone/plaster lower facade with timber upper storeys.
-        # This only substitutes UNKNOWN material codes, never surveyed data.
+        # Large multi-storey mountain residences dominate distant screenshots.
+        # Their shape is measured by IGN, but individual facade finishes
+        # are NOT surveyed. Make the architectural treatment consistent:
+        # restrained stone/plaster at lower floors and larch-clad upper floors.
+        # Do not alter explicit material codes or recorded building heights.
         d_from_station = math.hypot(b.east, b.north)
         unknown_finish = (not b.wall_code.strip().isdigit()
                           or b.wall_code.strip() in ("00", "90", "99"))
-        if (not b.meta.get("bourg_reference_area")
-                and d_from_station < 1700
-                and b.area >= 200 and b.floors >= 3
-                and b.wall_h >= 7.5 and b.rise >= 0.8
-                and unknown_finish):
-            b.meta["alpine_apartment_style"] = True
+        is_residence = (
+            d_from_station < 1700
+            and 160 <= b.area <= 3000
+            and b.wall_h >= 7.0
+            and b.floors >= 3
+            and b.rise >= 0.65
+            and not any(x in (b.nature + " " + b.usage).lower()
+                        for x in ("industri", "agricol", "hangar",
+                                  "religieux", "chapelle", "église"))
+        )
+        if is_residence:
+            b.meta["resort_residence_style"] = True
             b.meta["finish_confidence"] = "typological_not_surveyed"
-            b.wall_mat = ("wall_stone" if
-                          deterministic_int(b.bid + ":alpine_apartment") % 4 == 0
-                          else "wall_plaster")
-            if not b.roof_code.strip().isdigit():
+            b.meta["wood_upper_storeys"] = (
+                deterministic_int(b.bid + ":upper_cladding") % 100 < 82
+            )
+            if unknown_finish:
+                palette = ("wall_plaster_cream", "wall_plaster_ochre",
+                           "wall_stone", "wall_plaster_warm_white",
+                           "wall_stone")
+                b.wall_mat = palette[
+                    deterministic_int(b.bid + ":alpine_lower") % len(palette)
+                ]
+            if (not b.roof_code.strip().isdigit()
+                    or b.roof_code.strip() in ("00", "90", "99")):
                 b.roof_mat = "roof_slate"
         out.append(b)
     _fill_missing_altitudes(out)
@@ -238,37 +254,50 @@ def _assign_style(b: Building) -> None:
 
 
 def _mark_core(buildings: list[Building]) -> None:
+    """Give scarce detail budget to Valmorel itself, not distant big blocks.
+
+    The previous selection chose 160 buildings by largest area across the
+    entire IGN bounding box and excluded complex footprints. This could
+    leave downtown Valmorel's larger L-shaped residences as bare clusters.
+    """
     heritage_words = ("Eglise", "Chapelle", "Chateau", "Tour", "Religieux")
     candidates = []
     for b in buildings:
         b.heritage = any(w in (b.nature + b.usage) for w in heritage_words)
-        d = math.hypot(b.east, b.north)  # LAT0/LON0 is the resort centre
-        if b.complex:
+        d = math.hypot(b.east, b.north)
+        # Extremely large building volumes are left in the tile system; their
+        # geometry cannot be given the same window detail as a small residence.
+        if b.area > 3000 or b.rect_fill < 0.45:
             continue
-        if b.heritage or d < 520.0 and b.area >= 75.0 or b.area >= 520.0:
-            candidates.append((b.area, b))
-    # Prioritise visual detail along the Bourg reference corridor without
-    # changing the measured footprint or geometry of other resort buildings.
-    bourg = sorted(
-        ((b.meta["bourg_distance_m"], -b.area, b) for _area, b in candidates
-         if b.meta.get("bourg_reference_area")),
-        key=lambda v: (v[0], v[1]),
-    )
-    selected_ids: set[str] = set()
-    for _distance, _neg_area, b in bourg[:85]:
-        b.core = True
-        selected_ids.add(b.bid)
+        if d <= 1800 and (b.area >= 120 or b.heritage
+                          or b.meta.get("resort_residence_style")):
+            # Resort residences get priority; near-centre buildings outrank
+            # distant industrial halls regardless of gross floor area.
+            score = (
+                0 if b.meta.get("resort_residence_style") else
+                1 if b.meta.get("bourg_reference_area") else 2,
+                d,
+                -min(b.area, 2000),
+                b.bid,
+            )
+            candidates.append((score, b))
 
-    candidates.sort(key=lambda t: -t[0])
-    n_extra = 0
-    for _area, b in candidates:
-        if b.bid in selected_ids:
-            continue
-        if b.heritage or n_extra < 160:
+    candidates.sort(key=lambda item: item[0])
+    selected = [b for _score, b in candidates[:255]]
+    for b in selected:
+        b.core = True
+    # Detailed models outside this zone are preserved for rare heritage only
+    # when capacity is available. No far-away large structures displace the
+    # main visual focus around Valmorel.
+    remaining = 260 - len(selected)
+    if remaining > 0:
+        distant_heritage = sorted(
+            (b for b in buildings
+             if b.heritage and not b.core and b.area <= 3000),
+            key=lambda b: (math.hypot(b.east, b.north), b.bid)
+        )
+        for b in distant_heritage[:remaining]:
             b.core = True
-            selected_ids.add(b.bid)
-            if not b.heritage:
-                n_extra += 1
 
 
 # --------------------------------------------------------------------------
@@ -568,7 +597,9 @@ def add_core_details(mesh: MeshBuilder, b: Building, y_base: float, frame) -> No
         if le >= 2.2:
             edges.append((le, ax, ay, bx, by))
     edges.sort(reverse=True)
-    edges = edges[:8]
+    # Large irregular buildings have dozens of edges. Cap the window meshes
+    # per residence instead of generating thousands of tiny boxes.
+    edges = edges[:4] if b.meta.get("resort_residence_style") else edges[:8]
     up = (0.0, 0.0, 1.0)
     n_floors = max(1, min(b.floors, int(b.wall_h / 2.7) or 1))
     win_w, win_h = 1.0, 1.3
@@ -580,7 +611,7 @@ def add_core_details(mesh: MeshBuilder, b: Building, y_base: float, frame) -> No
         ux, uy = (bx - ax) / le, (by - ay) / le
         nx, ny = uy, -ux  # outward normal for a CCW ring
         usable = max(0.8, le - 1.8)
-        count = max(1, int(usable / 3.2) + 1)
+        count = min(10, max(1, int(usable / 3.2) + 1))
         for f in range(n_floors):
             if bourg_commerce and edge_i == 0 and f == 0:
                 # The surveyed inventory identifies a commercial building.
@@ -641,7 +672,7 @@ def add_core_details(mesh: MeshBuilder, b: Building, y_base: float, frame) -> No
             nx, ny = uy, -ux
             u3 = (ux, uy, 0.0)
             v3 = (-nx, -ny, 0.0)
-            alpine_style = bool(b.meta.get("alpine_apartment_style")
+            alpine_style = bool(b.meta.get("resort_residence_style")
                                 or b.meta.get("bourg_reference_area"))
             bay_count = min(7, max(1, int(le // 6.0))) if alpine_style else 1
             width = min(4.2, (le / bay_count) * 0.7)
@@ -702,16 +733,23 @@ def add_building(mesh: MeshBuilder, b: Building, origin_e: float, origin_n: floa
     wall_ring(mesh, ring, y_wall_base, stone_top, "stone_base", tex=2.5)
     main_mat = b.wall_mat if b.core else b.wall_mat + "_win"
     wall_top = y_base + b.wall_h
-    if (b.meta.get("bourg_upper_wood") and b.core) or b.meta.get("alpine_apartment_style"):
-        # Reference-informed, but not exact per-building upper-storey wood.
-        change_y = max(stone_top + 2.6, wall_top - 3.1)
+    if (b.meta.get("bourg_upper_wood") and b.core) or b.meta.get("wood_upper_storeys"):
+        # Typological Alpine cladding, not mapped to each photographed facade.
+        # Two storeys of wood reduce the gigantic blank stucco elevations.
+        change_y = max(stone_top + 2.6, wall_top - min(5.9, b.wall_h * 0.42))
         change_y = min(change_y, wall_top)
         wall_ring(mesh, ring, stone_top, change_y, main_mat)
-        upper_mat = "wall_wood" if b.core else "wall_wood_win"
+        upper_mat = "wall_wood_honey" if b.core else "wall_wood_honey_win"
         wall_ring(mesh, ring, change_y, wall_top, upper_mat)
     else:
         wall_ring(mesh, ring, stone_top, wall_top, main_mat)
     add_roof(mesh, local, wall_top, frame)
+    if b.meta.get("resort_residence_style"):
+        # A dark, narrow fascia visually separates the timber walls from
+        # sloping roofs at aircraft viewing distances. No fake extra floor.
+        wall_ring(mesh, ring, wall_top - 0.19, wall_top + 0.18,
+                  b.roof_mat if b.roof_mat != "roof_flat" else "wall_wood",
+                  tex=ROOF_TEX_M)
     if b.core:
         add_core_details(mesh, local, y_base, frame)
     tri = len(mesh.groups.get(main_mat, {}).get("idx", [])) // 3
