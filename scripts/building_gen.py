@@ -162,6 +162,24 @@ def load_buildings() -> list[Building]:
         )
         _assign_style(b)
         apply_bourg_reference_style(b)
+        # Large multi-storey residences around Valmorel often combine a
+        # pale stone/plaster lower facade with timber upper storeys.
+        # This only substitutes UNKNOWN material codes, never surveyed data.
+        d_from_station = math.hypot(b.east, b.north)
+        unknown_finish = (not b.wall_code.strip().isdigit()
+                          or b.wall_code.strip() in ("00", "90", "99"))
+        if (not b.meta.get("bourg_reference_area")
+                and d_from_station < 1700
+                and b.area >= 200 and b.floors >= 3
+                and b.wall_h >= 7.5 and b.rise >= 0.8
+                and unknown_finish):
+            b.meta["alpine_apartment_style"] = True
+            b.meta["finish_confidence"] = "typological_not_surveyed"
+            b.wall_mat = ("wall_stone" if
+                          deterministic_int(b.bid + ":alpine_apartment") % 4 == 0
+                          else "wall_plaster")
+            if not b.roof_code.strip().isdigit():
+                b.roof_mat = "roof_slate"
         out.append(b)
     _fill_missing_altitudes(out)
     _mark_core(out)
@@ -536,7 +554,9 @@ def add_roof(mesh: MeshBuilder, b: Building, y_eave: float, frame,
 
 
 def add_core_details(mesh: MeshBuilder, b: Building, y_base: float, frame) -> None:
-    if b.complex or b.rect_fill < 0.78:
+    # The old guard suppressed ALL 3D windows/balconies on many irregular
+    # residential blocks. Their true IGN edges still support facade details.
+    if b.rect_fill < 0.52 or b.area > 2500:
         return
     ring = b.ring
     n = len(ring)
@@ -677,12 +697,13 @@ def add_building(mesh: MeshBuilder, b: Building, origin_e: float, origin_n: floa
     wall_ring(mesh, ring, y_wall_base, stone_top, "stone_base", tex=2.5)
     main_mat = b.wall_mat if b.core else b.wall_mat + "_win"
     wall_top = y_base + b.wall_h
-    if b.meta.get("bourg_upper_wood") and b.core:
-        # A timber-clad upper storey is a common Valmorel visual pattern.
-        # The decision is intentionally marked as a non-surveyed heuristic.
-        change_y = max(stone_top + 2.6, wall_top - 2.9)
+    if (b.meta.get("bourg_upper_wood") and b.core) or b.meta.get("alpine_apartment_style"):
+        # Reference-informed, but not exact per-building upper-storey wood.
+        change_y = max(stone_top + 2.6, wall_top - 3.1)
+        change_y = min(change_y, wall_top)
         wall_ring(mesh, ring, stone_top, change_y, main_mat)
-        wall_ring(mesh, ring, change_y, wall_top, "wall_wood_honey")
+        upper_mat = "wall_wood" if b.core else "wall_wood_win"
+        wall_ring(mesh, ring, change_y, wall_top, upper_mat)
     else:
         wall_ring(mesh, ring, stone_top, wall_top, main_mat)
     add_roof(mesh, local, wall_top, frame)
