@@ -259,6 +259,11 @@ try {
         }
 
         Step "Back up old Community add-on and install the validated package"
+        # The user may have launched the simulator during the SDK build.
+        $runningSim = @(Get-Process -Name @("FlightSimulator2024", "FlightSimulator") -ErrorAction SilentlyContinue)
+        if ($runningSim.Count -gt 0) {
+            throw "MSFS 2024 was launched during the build. Close it before installation."
+        }
         New-Item -ItemType Directory -Path $BackupRoot -Force | Out-Null
         $target = Join-Path $community $PackageName
         $unique = [guid]::NewGuid().ToString("N").Substring(0, 8)
