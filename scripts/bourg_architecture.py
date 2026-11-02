@@ -30,9 +30,11 @@ BOURG_REFERENCE_RADIUS_M = 165.0
 BOURG_PLASTER_SLOTS = (
     "wall_plaster_ochre",
     "wall_plaster_cream",
-    "wall_plaster_rose",
     "wall_plaster_warm_white",
 )
+# Rose is kept in the source pack for later surveyed matches, but omitted
+# from heuristic random assignments: it produced oversized pink blocks from
+# aircraft viewpoints, unlike the muted natural stone/wood village palette.
 
 
 def distance_to_bourg_reference_m(lat: float, lon: float) -> float:
