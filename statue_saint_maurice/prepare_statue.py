@@ -54,8 +54,8 @@ def main():
                           name="monument_vierge_albedo", mimeType="image/png")
     with png.open("rb") as f:
         h = f.read(24)
-    if h[:8] != b"\x89PNG\r\n\x1a\n" or struct.unpack(">II", h[16:24]) != (2048, 2048):
-        raise ValueError("Expected supplied 2048 x 2048 PNG atlas")
+    if h[:8] != b"\x89PNG\r\n\x1a\n" or struct.unpack(">II", h[16:24]) not in ((2048, 2048), (4096, 4096)):
+        raise ValueError("Expected supplied 2048 or 4096 PNG atlas")
 
     MODEL.mkdir(parents=True, exist_ok=True)
     tex = MODEL / "texture"
