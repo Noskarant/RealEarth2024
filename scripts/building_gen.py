@@ -632,42 +632,47 @@ def add_core_details(mesh: MeshBuilder, b: Building, y_base: float, frame) -> No
                             (cx + nx * 0.08, cy + ny * 0.08, front_y),
                             u3, v3, up, shop_w, 0.06, 2.10)
 
-    # One balcony row on the longest residential facade, on the real wall.
+    # Wooden balcony bays on the measured main residential wall.
     if edges and not b.heritage and ("Résidentiel" in b.usage or
                                      "Commercial" in b.usage or b.area > 150):
         le, ax, ay, bx, by = edges[0]
         if le >= 4.0:
             ux, uy = (bx - ax) / le, (by - ay) / le
             nx, ny = uy, -ux
-            t = le / 2
             u3 = (ux, uy, 0.0)
             v3 = (-nx, -ny, 0.0)
-            width = min(4.2, le * 0.6)
-            for f in range(1, n_floors):
-                fy = 1.55 + f * 2.85
-                if fy + 1.0 > b.wall_h:
-                    continue
-                c = (ax + ux * t + nx * 0.66, ay + uy * t + ny * 0.66, y_base + fy)
-                add_box_enu(mesh, "balcony_wood", c, u3, v3, up, width, 1.25, 0.16)
-                cr = (ax + ux * t + nx * 1.22, ay + uy * t + ny * 1.22,
-                      y_base + fy + 0.55)
-                if b.meta.get("bourg_reference_area"):
-                    # Open timber balustrade: horizontal rails + spaced posts,
-                    # rather than the opaque one-metre-high solid block.
-                    for rail_height in (0.12, 0.86):
-                        rail_c = (cr[0], cr[1], y_base + fy + rail_height)
-                        add_box_enu(mesh, "balcony_wood", rail_c,
-                                    u3, v3, up, width, 0.10, 0.10)
-                    post_count = max(2, math.ceil(width / 1.05) + 1)
-                    for post_i in range(post_count):
-                        offset = -width / 2 + width * post_i / (post_count - 1)
-                        post_c = (cr[0] + ux * offset, cr[1] + uy * offset,
-                                  y_base + fy + 0.48)
-                        add_box_enu(mesh, "balcony_wood", post_c,
-                                    u3, v3, up, 0.10, 0.11, 0.95)
-                else:
-                    add_box_enu(mesh, "balcony_wood", cr, u3, v3, up,
-                                width, 0.09, 1.0)
+            alpine_style = bool(b.meta.get("alpine_apartment_style")
+                                or b.meta.get("bourg_reference_area"))
+            bay_count = min(7, max(1, int(le // 6.0))) if alpine_style else 1
+            width = min(4.2, (le / bay_count) * 0.7)
+            for bay in range(bay_count):
+                t = le * (bay + 0.5) / bay_count
+                for f in range(1, n_floors):
+                    fy = 1.55 + f * 2.85
+                    if fy + 1.0 > b.wall_h:
+                        continue
+                    c = (ax + ux * t + nx * 0.66,
+                         ay + uy * t + ny * 0.66, y_base + fy)
+                    add_box_enu(mesh, "balcony_wood", c, u3, v3, up,
+                                width, 1.25, 0.16)
+                    cr = (ax + ux * t + nx * 1.22,
+                          ay + uy * t + ny * 1.22, y_base + fy + 0.55)
+                    if alpine_style:
+                        # Slatted open timber balustrades, not opaque slabs.
+                        for rail_height in (0.12, 0.86):
+                            rail_c = (cr[0], cr[1], y_base + fy + rail_height)
+                            add_box_enu(mesh, "balcony_wood", rail_c,
+                                        u3, v3, up, width, 0.10, 0.10)
+                        post_count = max(2, math.ceil(width / 1.05) + 1)
+                        for post_i in range(post_count):
+                            offset = -width / 2 + width * post_i / (post_count - 1)
+                            post_c = (cr[0] + ux * offset, cr[1] + uy * offset,
+                                      y_base + fy + 0.48)
+                            add_box_enu(mesh, "balcony_wood", post_c,
+                                        u3, v3, up, 0.10, 0.11, 0.95)
+                    else:
+                        add_box_enu(mesh, "balcony_wood", cr, u3, v3, up,
+                                    width, 0.09, 1.0)
 
     center, u, v, L, W, W_wall = frame
     cx, cy = center
