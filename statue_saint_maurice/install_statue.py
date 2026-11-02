@@ -67,10 +67,12 @@ def validate() -> None:
         raise ValueError("No confirmed monument GPS; refusing installation")
     manifest = json.loads((SRC / "manifest.json").read_text(encoding="utf-8-sig"))
     layout = json.loads((SRC / "layout.json").read_text(encoding="utf-8-sig"))
-    if manifest.get("package_version") != "0.1.0" or not layout.get("content"):
+    if manifest.get("package_version") != "0.1.1" or not layout.get("content"):
         raise ValueError("Incorrect package manifest or layout")
     if len(list(SRC.rglob("*.BGL"))) < 2:
         raise ValueError("Scenery placement BGL was not compiled")
+    if not any(p.name.lower() == "modellib.bgl" and p.stat().st_size > 10000 for p in SRC.rglob("*.BGL")):
+        raise ValueError("Compiled model library is empty; refusing install")
     textures = list(SRC.rglob("*.KTX2"))
     expected = next((p for p in textures if
                      p.name.upper() == "MONUMENT_VIERGE_ALBEDO.PNG.KTX2"), None)
@@ -96,6 +98,11 @@ def main() -> None:
         print("FS2024 is closed; continuing installation.")
     validate()
     community = find_community()
+    # Prevent an older duplicate package in Community2024/Community from overriding this build.
+    app_root = community.parent
+    other = app_root / ("Community2024" if community.name.lower() == "community" else "Community")
+    if (other / NAME).is_dir():
+        raise ValueError(f"Duplicate statue add-on in {other}; move old duplicate out of Community first")
     target = community / NAME
     uid = uuid.uuid4().hex[:8]
     stage = community / ("." + NAME + "_stage_" + uid)
