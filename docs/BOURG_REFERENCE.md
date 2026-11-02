@@ -36,3 +36,54 @@ Le test de textures produit un **bâtiment** avant de déclencher la reconstruct
 2. Construire des passages sous arcades et des volumes spécifiques seulement lorsque les emplacements et dimensions sont identifiés.
 3. Faire le même relevé par quartier pour Crève-Cœur, Planchamp, Le Mottet et le reste de la station.
 4. Réaliser une validation visuelle in-game, corriger les décalages et vérifier performances et textures KTX2.
+
+## Retour visuel après premier essai FS2024 — 2 novembre 2026
+La scène v0.1.3 compile et ses 20 KTX2 sont présents. La capture en jeu
+montre une architecture encore très simplifiée : beaucoup de bâtiments
+groupés sont des blocs dont les façades n'ont pas de fenêtres.
+
+**Diagnostic vérifié dans les sources :** le générateur utilise `wall_*_win`
+pour les bâtiments groupés, mais `pack_textures.py` pointait ces clés
+vers les mêmes PNG `*_basecolor.png` que les murs nus.
+
+### Correction v0.1.4 (à compiler et tester)
+- `scripts/window_facades.py` prélève une fenêtre du fichier RGB
+  `assets/valmorel_complete/windows_atlas.png` et la superpose aux textures
+  de mur originales.
+- Les versions `wall_*_win` sont des PNG **distincts** dans
+  `build/generated_window_facades/` (dossier ignoré par Git). Aucune texture
+  originale du pack n'est modifiée.
+- Les glTF continuent de faire référence à `texture/<nom>.png` et le
+  compilateur SDK convertit les PNG avec leurs XML sidecar.
+- C'est une solution visuelle légère : l'emplacement des fenêtres reste
+  **illustratif**, non relevé sur chaque façade réelle.
+
+### Test isolé v0.1.4
+Sur la branche `fix/valmorel-sdk-textures` :
+
+```powershell
+cd D:\RealEarth2024
+git pull --ff-only
+.\.venv\Scripts\python.exe scripts\qa_bourg.py
+.\.venv\Scripts\python.exe scripts\build_texture_probe.py --window-facade
+& "D:\RealEarth2024\build\tools\fspackagetool.exe" "D:\RealEarth2024\build\texture_probe_official\realearth-texture-probe.xml"
+Get-ChildItem "D:\RealEarth2024\build\texture_probe_official\Packages" -Recurse -Filter "*.KTX2" | Select-Object Name,Length
+```
+
+Attendu : `BAKED WINDOW FACADES: ... OK`, `SOURCE GEOMETRY / PNG REFERENCE QA: OK`,
+références d'images valides dans le glTF, puis des KTX2 de taille non nulle.
+Ne pas confondre cela avec une preuve de rendu correct dans FS2024.
+
+**Compilation complète seulement après validation :**
+
+```powershell
+.\.venv\Scripts\python.exe scripts\build_models.py
+.\.venv\Scripts\python.exe scripts\build_scenery.py
+& "D:\RealEarth2024\build\tools\fspackagetool.exe" "D:\RealEarth2024\project\realearth-valmorel-hd.xml"
+.\.venv\Scripts\python.exe scripts\publish_package.py
+.\.venv\Scripts\python.exe scripts\validate_package.py
+```
+
+Avant de remplacer le package dans Community, conserver une copie
+de la v0.1.3 qui fonctionne. La qualité de la volumétrie (toits complexes,
+arcades, façades individuelles) exige des relevés ciblés supplémentaires.
