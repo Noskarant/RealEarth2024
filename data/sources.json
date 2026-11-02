@@ -1,0 +1,219 @@
+{
+  "dataset": "RealEarth Valmorel HD",
+  "bbox_wgs84": [
+    6.39,
+    45.412,
+    6.5,
+    45.505
+  ],
+  "sources": [
+    {
+      "key": "batiment",
+      "typename": "BDTOPO_V3:batiment",
+      "path": "data\\raw\\batiment.geojson",
+      "features": 4524,
+      "bytes": 6055176,
+      "url": "https://data.geopf.fr/wfs/ows",
+      "bbox": [
+        6.39,
+        45.412,
+        6.5,
+        45.505
+      ],
+      "downloaded_utc": "2026-11-01T15:42:23.495186+00:00",
+      "license": "Licence Ouverte 2.0 (Etalab) - IGN"
+    },
+    {
+      "key": "routes",
+      "typename": "BDTOPO_V3:troncon_de_route",
+      "path": "data\\raw\\routes.geojson",
+      "features": 3264,
+      "bytes": 11948362,
+      "url": "https://data.geopf.fr/wfs/ows",
+      "bbox": [
+        6.39,
+        45.412,
+        6.5,
+        45.505
+      ],
+      "downloaded_utc": "2026-11-01T15:42:26.930867+00:00",
+      "license": "Licence Ouverte 2.0 (Etalab) - IGN"
+    },
+    {
+      "key": "vegetation",
+      "typename": "BDTOPO_V3:zone_de_vegetation",
+      "path": "data\\raw\\vegetation.geojson",
+      "features": 735,
+      "bytes": 6742994,
+      "url": "https://data.geopf.fr/wfs/ows",
+      "bbox": [
+        6.39,
+        45.412,
+        6.5,
+        45.505
+      ],
+      "downloaded_utc": "2026-11-01T15:42:28.389546+00:00",
+      "license": "Licence Ouverte 2.0 (Etalab) - IGN"
+    },
+    {
+      "key": "hydro_surface",
+      "typename": "BDTOPO_V3:surface_hydrographique",
+      "path": "data\\raw\\hydro_surface.geojson",
+      "features": 32,
+      "bytes": 530346,
+      "url": "https://data.geopf.fr/wfs/ows",
+      "bbox": [
+        6.39,
+        45.412,
+        6.5,
+        45.505
+      ],
+      "downloaded_utc": "2026-11-01T15:42:28.769837+00:00",
+      "license": "Licence Ouverte 2.0 (Etalab) - IGN"
+    },
+    {
+      "key": "hydro_ligne",
+      "typename": "BDTOPO_V3:troncon_hydrographique",
+      "path": "data\\raw\\hydro_ligne.geojson",
+      "features": 750,
+      "bytes": 2126231,
+      "url": "https://data.geopf.fr/wfs/ows",
+      "bbox": [
+        6.39,
+        45.412,
+        6.5,
+        45.505
+      ],
+      "downloaded_utc": "2026-11-01T15:42:29.389953+00:00",
+      "license": "Licence Ouverte 2.0 (Etalab) - IGN"
+    },
+    {
+      "key": "constructions_lineaires",
+      "typename": "BDTOPO_V3:construction_lineaire",
+      "path": "data\\raw\\constructions_lineaires.geojson",
+      "features": 183,
+      "bytes": 154178,
+      "url": "https://data.geopf.fr/wfs/ows",
+      "bbox": [
+        6.39,
+        45.412,
+        6.5,
+        45.505
+      ],
+      "downloaded_utc": "2026-11-01T15:42:29.685731+00:00",
+      "license": "Licence Ouverte 2.0 (Etalab) - IGN"
+    },
+    {
+      "key": "constructions_surfaciques",
+      "typename": "BDTOPO_V3:construction_surfacique",
+      "path": "data\\raw\\constructions_surfaciques.geojson",
+      "features": 6,
+      "bytes": 6594,
+      "url": "https://data.geopf.fr/wfs/ows",
+      "bbox": [
+        6.39,
+        45.412,
+        6.5,
+        45.505
+      ],
+      "downloaded_utc": "2026-11-01T15:42:29.905448+00:00",
+      "license": "Licence Ouverte 2.0 (Etalab) - IGN"
+    },
+    {
+      "key": "constructions_ponctuelles",
+      "typename": "BDTOPO_V3:construction_ponctuelle",
+      "path": "data\\raw\\constructions_ponctuelles.geojson",
+      "features": 57,
+      "bytes": 43861,
+      "url": "https://data.geopf.fr/wfs/ows",
+      "bbox": [
+        6.39,
+        45.412,
+        6.5,
+        45.505
+      ],
+      "downloaded_utc": "2026-11-01T15:42:30.126508+00:00",
+      "license": "Licence Ouverte 2.0 (Etalab) - IGN"
+    },
+    {
+      "key": "sports",
+      "typename": "BDTOPO_V3:terrain_de_sport",
+      "path": "data\\raw\\sports.geojson",
+      "features": 11,
+      "bytes": 10162,
+      "url": "https://data.geopf.fr/wfs/ows",
+      "bbox": [
+        6.39,
+        45.412,
+        6.5,
+        45.505
+      ],
+      "downloaded_utc": "2026-11-01T15:42:30.353672+00:00",
+      "license": "Licence Ouverte 2.0 (Etalab) - IGN"
+    },
+    {
+      "key": "reservoirs",
+      "typename": "BDTOPO_V3:reservoir",
+      "path": "data\\raw\\reservoirs.geojson",
+      "features": 44,
+      "bytes": 62668,
+      "url": "https://data.geopf.fr/wfs/ows",
+      "bbox": [
+        6.39,
+        45.412,
+        6.5,
+        45.505
+      ],
+      "downloaded_utc": "2026-11-01T15:42:30.566614+00:00",
+      "license": "Licence Ouverte 2.0 (Etalab) - IGN"
+    },
+    {
+      "key": "toponymie",
+      "typename": "BDTOPO_V3:toponymie",
+      "path": "data\\raw\\toponymie.geojson",
+      "features": 549,
+      "bytes": 278123,
+      "url": "https://data.geopf.fr/wfs/ows",
+      "bbox": [
+        6.39,
+        45.412,
+        6.5,
+        45.505
+      ],
+      "downloaded_utc": "2026-11-01T15:42:30.811923+00:00",
+      "license": "Licence Ouverte 2.0 (Etalab) - IGN"
+    },
+    {
+      "key": "routes_nommees",
+      "typename": "BDTOPO_V3:route_numerotee_ou_nommee",
+      "path": "data\\raw\\routes_nommees.geojson",
+      "features": 17,
+      "bytes": 2906038,
+      "url": "https://data.geopf.fr/wfs/ows",
+      "bbox": [
+        6.39,
+        45.412,
+        6.5,
+        45.505
+      ],
+      "downloaded_utc": "2026-11-01T15:42:31.571195+00:00",
+      "license": "Licence Ouverte 2.0 (Etalab) - IGN"
+    },
+    {
+      "key": "commune",
+      "typename": "ADMINEXPRESS-COG-CARTO.LATEST:commune",
+      "path": "data\\raw\\commune.geojson",
+      "features": 1,
+      "bytes": 8812,
+      "url": "https://data.geopf.fr/wfs/ows",
+      "bbox": [
+        6.39,
+        45.412,
+        6.5,
+        45.505
+      ],
+      "downloaded_utc": "2026-11-01T15:42:31.934604+00:00",
+      "license": "Licence Ouverte 2.0 (Etalab) - IGN"
+    }
+  ]
+}

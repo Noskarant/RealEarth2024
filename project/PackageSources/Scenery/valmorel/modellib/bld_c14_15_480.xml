@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModelInfo guid="{E8A04402-7FE5-5096-A5D7-B3DCB3A34813}" version="1.1">
+    <LODS>
+        <LOD minSize="0" ModelFile="bld_c14_15_480.gltf"/>
+    </LODS>
+</ModelInfo>

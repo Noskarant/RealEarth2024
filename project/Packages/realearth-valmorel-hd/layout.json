@@ -1,0 +1,29 @@
+{
+  "content": [
+    {
+      "path": "bglindex.bout",
+      "size": 283732,
+      "date": 134380885620017058
+    },
+    {
+      "path": "contentinfo/realearth-valmorel-hd/contenthistory.json",
+      "size": 60,
+      "date": 134380885620000000
+    },
+    {
+      "path": "contentinfo/realearth-valmorel-hd/thumbnail.jpg",
+      "size": 6074,
+      "date": 134380212790000000
+    },
+    {
+      "path": "scenery/valmorel/modellib/modellib.bgl",
+      "size": 16946216,
+      "date": 134380885620000006
+    },
+    {
+      "path": "scenery/valmorel/scenery/valmorel_buildings.bgl",
+      "size": 243952,
+      "date": 134380885620000006
+    }
+  ]
+}

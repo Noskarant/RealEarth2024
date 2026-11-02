@@ -1,0 +1,26 @@
+{
+  "buildings": 4398,
+  "models": 2177,
+  "by_level": {
+    "cluster_massing": 4243,
+    "detailed_core": 155
+  },
+  "by_fidelity": {
+    "B": 4140,
+    "D": 258
+  },
+  "by_roof": {
+    "roof_tile": 708,
+    "roof_slate": 1485,
+    "roof_metal": 1995,
+    "roof_flat": 210
+  },
+  "by_wall": {
+    "wall_wood": 1744,
+    "wall_plaster": 949,
+    "wall_stone": 1559,
+    "wall_concrete": 128,
+    "wall_brick": 18
+  },
+  "csv": "D:\\RealEarth2024\\docs\\valmorel_buildings_delivery.csv"
+}

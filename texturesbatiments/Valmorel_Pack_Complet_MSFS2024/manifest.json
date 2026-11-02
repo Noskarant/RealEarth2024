@@ -1,0 +1,177 @@
+{
+  "purpose": "Stylized generic Valmorel-inspired MSFS 2024 building textures",
+  "count_materials": 40,
+  "facade_atlases": 5,
+  "resolution_materials": "1024x1024",
+  "resolution_facades": "2048x2048",
+  "license": "Original generated assets; free to use and modify",
+  "limitations": [
+    "Not photographs of actual Valmorel buildings",
+    "Normal maps are flat placeholders; roughness maps are uniform placeholders",
+    "Not validated in MSFS 2024",
+    "Facade atlases are illustrative, not measured elevation drawings",
+    "Seams may be visible on tiled surfaces"
+  ],
+  "materials": [
+    {
+      "name": "wood_brown_vertical",
+      "category": "wood"
+    },
+    {
+      "name": "wood_dark_vertical",
+      "category": "wood"
+    },
+    {
+      "name": "wood_honey_vertical",
+      "category": "wood"
+    },
+    {
+      "name": "wood_weathered_grey",
+      "category": "wood"
+    },
+    {
+      "name": "wood_redbrown_vertical",
+      "category": "wood"
+    },
+    {
+      "name": "wood_horizontal",
+      "category": "timber"
+    },
+    {
+      "name": "wood_balcony_dark",
+      "category": "timber"
+    },
+    {
+      "name": "wood_balcony_warm",
+      "category": "timber"
+    },
+    {
+      "name": "wood_shutters_green",
+      "category": "wood"
+    },
+    {
+      "name": "wood_shutters_blue",
+      "category": "wood"
+    },
+    {
+      "name": "wood_shutters_brown",
+      "category": "wood"
+    },
+    {
+      "name": "stone_grey_rubble",
+      "category": "stone"
+    },
+    {
+      "name": "stone_warm_rubble",
+      "category": "stone"
+    },
+    {
+      "name": "stone_dark_rubble",
+      "category": "stone"
+    },
+    {
+      "name": "masonry_grey",
+      "category": "masonry"
+    },
+    {
+      "name": "masonry_beige",
+      "category": "masonry"
+    },
+    {
+      "name": "plaster_cream",
+      "category": "plaster"
+    },
+    {
+      "name": "plaster_ochre",
+      "category": "plaster"
+    },
+    {
+      "name": "plaster_light_grey",
+      "category": "plaster"
+    },
+    {
+      "name": "plaster_rose",
+      "category": "plaster"
+    },
+    {
+      "name": "plaster_warm_white",
+      "category": "plaster"
+    },
+    {
+      "name": "roof_lauze_grey",
+      "category": "slate"
+    },
+    {
+      "name": "roof_lauze_dark",
+      "category": "slate"
+    },
+    {
+      "name": "roof_slate_bluegrey",
+      "category": "slate"
+    },
+    {
+      "name": "roof_metal_grey",
+      "category": "roof"
+    },
+    {
+      "name": "roof_metal_brown",
+      "category": "roof"
+    },
+    {
+      "name": "roof_shingle_brown",
+      "category": "shingle"
+    },
+    {
+      "name": "ground_cobblestone",
+      "category": "cobble"
+    },
+    {
+      "name": "ground_gravel",
+      "category": "ground"
+    },
+    {
+      "name": "ground_asphalt",
+      "category": "ground"
+    },
+    {
+      "name": "ground_concrete",
+      "category": "ground"
+    },
+    {
+      "name": "ground_paving",
+      "category": "masonry"
+    },
+    {
+      "name": "metal_black",
+      "category": "metal"
+    },
+    {
+      "name": "metal_galvanized",
+      "category": "metal"
+    },
+    {
+      "name": "metal_copper_aged",
+      "category": "metal"
+    },
+    {
+      "name": "glass_reflection",
+      "category": "glass"
+    },
+    {
+      "name": "window_frame_white",
+      "category": "plaster"
+    },
+    {
+      "name": "window_frame_brown",
+      "category": "wood"
+    },
+    {
+      "name": "door_wood_dark",
+      "category": "wood"
+    },
+    {
+      "name": "chimney_stone",
+      "category": "masonry"
+    }
+  ]
+}

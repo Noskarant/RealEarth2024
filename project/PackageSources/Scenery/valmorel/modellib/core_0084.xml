@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModelInfo guid="{4A03F3C8-56ED-5DF1-880F-777F3CA33450}" version="1.1">
+    <LODS>
+        <LOD minSize="0" ModelFile="core_0084.gltf"/>
+    </LODS>
+</ModelInfo>
