@@ -116,3 +116,25 @@ compilation SDK et le rendu en jeu de cette version 0.1.5 restent non
 exécutés**. Conserver l'ancienne v0.1.4 comme référence jusqu'à contrôle
 visuel. Les performances en jeu peuvent nécessiter des LOD ou des distances
 de dessin ajustés.
+
+## Correctif de démarrage — 2 novembre 2026
+
+Premier essai Windows : `qa_ski_importer.py` échoue à
+`ValueError: Imported GLB has no usable triangles`.
+Le problème vient **du test généré** : il produisait un tétraèdre à
+quatre triangles alors que `convert_glb()` refuse les modèles d'essai de
+moins de dix triangles. Les packs n'avaient pas encore été téléchargés.
+
+Correctif : remplacement du tétraèdre par une grille de 16 sommets et
+18 triangles réels. Le test valide maintenant également les bornes et
+l'application de la transformation `KHR_mesh_quantization`.
+La règle de protection minimale du convertisseur est conservée.
+
+La branche est mise à jour sur GitHub. Avec MSFS2024 fermé, relancer
+**`MAJ_VALMOREL.bat`** : le lanceur fait `git pull --ff-only`
+automatiquement. La version actuellement installée reste intacte jusqu'à
+la réussite de toutes les étapes.
+
+**Statut de validation :** correctif du script enregistré, attente du
+nouveau journal Windows pour confirmer le test et le téléchargement
+effectifs des GLB.
