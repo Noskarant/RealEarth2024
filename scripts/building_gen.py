@@ -481,9 +481,19 @@ def _complex_pitched_roof(mesh: MeshBuilder, b: Building,
     triangles = triangulate(MultiPoint(points))
     if not triangles:
         return False
-    # The recorded ridge rise remains the maximum target roof height.
-    # Reaching it ~4m inward creates pitched segments, not a flat roof box.
-    slope = b.rise / max(2.0, min(5.5, min(maxx-minx,maxy-miny)*0.48))
+    # Previous roofs hit the maximum ridge height after only ~5.5m.
+    # On 20-40m-wide L-shaped residences this created a LARGE FLAT TOP,
+    # exactly the slab-like roofs visible in the user's aerial screenshot.
+    # Scale the height gradient to the building's actual in-footprint
+    # inradius so ridges remain narrow all the way toward the medial axis.
+    interior_distances = [
+        poly.boundary.distance(Point(x, y)) for x, y in points
+        if poly.covers(Point(x, y))
+    ]
+    if not interior_distances:
+        return False
+    ridge_distance = max(interior_distances)
+    slope = b.rise / max(0.55, ridge_distance)
     count = 0
     for tri in triangles:
         # Delaunay is unconstrained. Clip any crossing triangles rather than
