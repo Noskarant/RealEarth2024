@@ -87,7 +87,13 @@ def validate() -> None:
 
 def main() -> None:
     if sim_running():
-        raise ValueError("Close FS2024 completely before installing")
+        print("FS2024 is still running: installation has NOT started.")
+        print("Close the simulator normally, then press Enter to retry.")
+        while sim_running():
+            answer = input("Press Enter after closing FS2024, or Q to cancel: ").strip().lower()
+            if answer in ("q", "quit", "n", "no"):
+                raise ValueError("Cancelled; existing Community package unchanged")
+        print("FS2024 is closed; continuing installation.")
     validate()
     community = find_community()
     target = community / NAME
