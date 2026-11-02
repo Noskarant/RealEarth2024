@@ -627,7 +627,9 @@ def add_core_details(mesh: MeshBuilder, b: Building, y_base: float, frame) -> No
     edges.sort(reverse=True)
     # Large irregular buildings have dozens of edges. Cap the window meshes
     # per residence instead of generating thousands of tiny boxes.
-    edges = edges[:4] if b.meta.get("resort_residence_style") else edges[:8]
+    # Avoid faceless side wings of L-shaped residences at helicopter range.
+    # Still cap the most important facade edges for mesh performance.
+    edges = edges[:6] if b.meta.get("resort_residence_style") else edges[:8]
     up = (0.0, 0.0, 1.0)
     n_floors = max(1, min(b.floors, int(b.wall_h / 2.7) or 1))
     win_w, win_h = 1.0, 1.3
@@ -759,7 +761,11 @@ def add_building(mesh: MeshBuilder, b: Building, origin_e: float, origin_n: floa
     y_wall_base = y_base - FOUNDATION_DEPTH_M
     stone_top = y_base + min(1.1, max(0.5, b.wall_h * 0.18))
     wall_ring(mesh, ring, y_wall_base, stone_top, "stone_base", tex=2.5)
-    main_mat = b.wall_mat if b.core else b.wall_mat + "_win"
+    # Some large/irregular detailed buildings cannot take 3D facade pieces
+    # (see add_core_details guard). Give those facades baked-window textures
+    # instead of leaving the entire elevation completely blank.
+    has_mesh_windows = b.core and b.rect_fill >= 0.52 and b.area <= 2500
+    main_mat = b.wall_mat if has_mesh_windows else b.wall_mat + "_win"
     wall_top = y_base + b.wall_h
     if (b.meta.get("bourg_upper_wood") and b.core) or b.meta.get("wood_upper_storeys"):
         # Typological Alpine cladding, not mapped to each photographed facade.
@@ -767,7 +773,7 @@ def add_building(mesh: MeshBuilder, b: Building, origin_e: float, origin_n: floa
         change_y = max(stone_top + 2.6, wall_top - min(5.9, b.wall_h * 0.42))
         change_y = min(change_y, wall_top)
         wall_ring(mesh, ring, stone_top, change_y, main_mat)
-        upper_mat = "wall_wood_honey" if b.core else "wall_wood_honey_win"
+        upper_mat = "wall_wood_honey" if has_mesh_windows else "wall_wood_honey_win"
         wall_ring(mesh, ring, change_y, wall_top, upper_mat)
     else:
         wall_ring(mesh, ring, stone_top, wall_top, main_mat)
