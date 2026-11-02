@@ -7,6 +7,8 @@ import struct
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
+from generate_lods import write_lods
+
 ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "source"
 PROJ = ROOT / "project"
@@ -61,8 +63,9 @@ def main():
     tex = MODEL / "texture"
     tex.mkdir(parents=True, exist_ok=True)
     SCENERY.mkdir(parents=True, exist_ok=True)
-    (MODEL / "monument_vierge.gltf").write_text(json.dumps(g, indent=2) + "\n", encoding="utf-8")
-    shutil.copy2(bin_path, MODEL / "monument_vierge.bin")
+    # Preserve the untouched 297k-vertex source, but compile reduced LODs.
+    # The original single high-density LOD may be culled by MSFS 2024.
+    lods = write_lods(g, bin_path, MODEL)
     shutil.copy2(png, tex / "monument_vierge_albedo.png")
     (tex / "monument_vierge_albedo.png.xml").write_text(
         "<BitmapConfiguration>\n  <BitmapSlot>MTL_BITMAP_DECAL0</BitmapSlot>\n</BitmapConfiguration>\n",
@@ -70,7 +73,9 @@ def main():
     (MODEL / "monument_vierge.xml").write_text(
         '<?xml version="1.0" encoding="utf-8"?>\n'
         f'<ModelInfo guid="{MODEL_GUID}" version="1.1">\n'
-        ' <LODS><LOD minSize="0" ModelFile="monument_vierge.gltf"/></LODS>\n'
+        ' <LODS>\n'
+        + ''.join(f'  <LOD minSize="{lod["minSize"]}" ModelFile="{lod["gltf"]}"/>\n' for lod in lods)
+        + ' </LODS>\n'
         '</ModelInfo>\n', encoding="utf-8")
 
     placement_path = ROOT / "placement.json"
@@ -119,7 +124,7 @@ def main():
     definition = defs / (NAME + ".xml")
     definition.write_text(
         '<?xml version="1.0" encoding="utf-8"?>\n'
-        '<AssetPackage Version="0.1.0"><ItemSettings><ContentType>SCENERY</ContentType>'
+        '<AssetPackage Version="0.1.1"><ItemSettings><ContentType>SCENERY</ContentType>'
         '<Title>Saint-Maurice - Vierge du Peu</Title><Manufacturer>RealEarth</Manufacturer>'
         '<Creator>RealEarth2024</Creator></ItemSettings>'
         '<Flags><VisibleInStore>false</VisibleInStore><CanBeReferenced>false</CanBeReferenced></Flags>'
@@ -141,6 +146,7 @@ def main():
     if placed:
         ET.parse(SCENERY / "monument_vierge_placement.xml")
     print("MODEL/PNG/XML QA: OK -", g["accessors"][0]["count"], "vertices")
+    print("LOD QA: ", [(lod["name"], lod["vertices"]) for lod in lods])
     print("GPS:", "confirmed position configured" if placed else "not set; ModelLib texture probe only")
     print("SDK project:", project_file)
 
