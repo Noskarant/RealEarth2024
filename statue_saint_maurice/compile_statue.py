@@ -39,8 +39,9 @@ while time.monotonic() - start < 900:
         bgl = list(output.rglob("*.BGL"))
         pos = json.loads((ROOT / "placement.json").read_text())
         required_bgls = 2 if pos.get("latitude") is not None else 1
-        valid = (manifest.get("package_version") == "0.1.0" and
+        valid = (manifest.get("package_version") == "0.1.1" and
                  len(ktx) == 1 and len(bgl) >= required_bgls and
+                 any(p.name.lower() == "modellib.bgl" and p.stat().st_size > 10000 for p in bgl) and
                  len(layout.get("content", [])) >= 2)
         if valid:
             valid = ktx[0].read_bytes()[:12] == bytes.fromhex("ab4b5458203230bb0d0a1a0a")
@@ -70,6 +71,6 @@ if dest.exists():
     shutil.rmtree(dest)
 dest.parent.mkdir(parents=True, exist_ok=True)
 shutil.copytree(output, dest)
-print("SDK TEXTURE QA: OK - 1 KTX2, " + str(len(bgl)) + " BGL")
+print("SDK TEXTURE AND LOD QA: OK v0.1.1 - 1 KTX2, " + str(len(bgl)) + " BGL")
 print("Package ready:", dest)
 print("Nothing was installed to Community. Verify GPS first.")
