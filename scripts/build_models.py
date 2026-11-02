@@ -14,6 +14,8 @@ from config import (BUILDINGS, CLUSTER_BAND_M, CLUSTER_CELL_M, MODEL_SRC,
 from fsgltf import MeshBuilder, write_gltf
 from materials import generate
 from pack_textures import pack_map
+from ski_assets import build_assets
+from ski_placements import prepare_decorations
 
 ROOF_ROUGH = {"roof_slate": 0.72, "roof_metal": 0.38, "roof_tile": 0.82,
               "roof_flat": 0.95, "roof_thatch": 0.9, "stone_base": 0.9}
@@ -32,7 +34,7 @@ def write_model_xml(path: Path, name: str) -> None:
 
 
 def clean_previous() -> None:
-    for pat in ("bld_*", "core_*", "valmorel_test_building.*", "test_*.png",
+    for pat in ("bld_*", "core_*", "ski_*", "valmorel_test_building.*", "test_*.png",
                 "*.png"):
         for p in MODEL_SRC.glob(pat):
             if p.is_file():
@@ -55,6 +57,12 @@ def main() -> None:
     buildings = load_buildings()
     print(f"buildings loaded: {len(buildings)}")
 
+    # Rebuild CC0 assets as standard MSFS-compatible uncompressed glTF.
+    assets = build_assets(MODEL_SRC)
+    chalet_replacements, ski_props = prepare_decorations(buildings, assets)
+    if not chalet_replacements or not ski_props:
+        raise RuntimeError("Empty ski augmentation; refusing partial build")
+
     # One MSFS placement = one rigid object with one anchor altitude.
     # Merge only buildings inside the same 100 m cell AND the same 2.5 m
     # altitude band, so the residual vertical error stays under the
@@ -62,6 +70,9 @@ def main() -> None:
     clusters: dict[tuple[int, int, int], list] = defaultdict(list)
     core = []
     for b in buildings:
+        if b.bid in chalet_replacements:
+            # This IGN footprint is replaced by a chalet, not duplicated.
+            continue
         if b.core:
             core.append(b)
         else:
@@ -130,6 +141,11 @@ def main() -> None:
         total_tris += mesh.triangle_count()
         total_models += 1
 
+    # Append accurate IGN footprint replacements and grounded ski props.
+    placements.extend(chalet_replacements.values())
+    placements.extend(ski_props)
+    total_models += len(assets)
+
     # MSFS 2024 requires a BitmapConfiguration sidecar for every source PNG.
     # Without it the ModelLib builds, but the runtime texture is not emitted.
     texture_dir = MODEL_SRC / "texture"
@@ -144,6 +160,10 @@ def main() -> None:
         json.dumps(placements, ensure_ascii=False, indent=1), encoding="utf-8")
     stats = {
         "buildings_total": len(buildings),
+        "cc0_asset_types": len(assets),
+        "cc0_chalet_replacements": len(chalet_replacements),
+        "cc0_resort_props": len(ski_props),
+        "cc0_import_triangles": sum(asset["triangles"] for asset in assets.values()),
         "core_models": len(core),
         "cluster_models": len(tile_report),
         "tile_models": len(tile_report),
