@@ -24,7 +24,8 @@ from pathlib import Path
 
 import mapbox_earcut as earcut
 import numpy as np
-from shapely.geometry import Polygon, shape
+from shapely.geometry import Polygon, Point, MultiPoint, shape
+from shapely.ops import triangulate
 from shapely.geometry.polygon import orient
 
 from bourg_architecture import apply_bourg_reference_style
@@ -389,14 +390,75 @@ def _flat_cap(mesh: MeshBuilder, b: Building, y_eave: float, material: str) -> N
     wall_ring(mesh, b.ring, y_eave, y_eave + 0.38, b.wall_mat)
 
 
+def _complex_pitched_roof(mesh: MeshBuilder, b: Building,
+                          y_eave: float, material: str) -> bool:
+    """Pitched roof field constrained to an irregular IGN footprint.
+
+    This is approximate roof geometry, NOT a surveyed roof skeleton.
+    Unlike the old giant flat cap, the height rises inward from the true
+    footprint boundary toward the documented BD TOPO ridge altitude.
+    A capped interior point grid adds stable triangulation on L-shaped
+    buildings while keeping all triangles strictly inside the footprint.
+    """
+    poly = Polygon(b.ring)
+    if not poly.is_valid or poly.area < 15 or b.rise < 0.5:
+        return False
+    minx, miny, maxx, maxy = poly.bounds
+    span = max(maxx-minx, maxy-miny)
+    if span > 180:
+        return False
+    step = max(2.5, min(7.0, math.sqrt(poly.area) / 9.0))
+    # Use stable, bounded sampling to avoid too many triangles in MSFS.
+    points = list(b.ring)
+    nx = max(1, min(30, math.ceil((maxx-minx)/step)))
+    ny = max(1, min(30, math.ceil((maxy-miny)/step)))
+    for ix in range(nx):
+        for iy in range(ny):
+            x = minx + (ix+0.5)*(maxx-minx)/nx
+            y = miny + (iy+0.5)*(maxy-miny)/ny
+            if poly.contains(Point(x, y)):
+                points.append((x, y))
+    if len(points) > 1000:
+        return False
+    triangles = triangulate(MultiPoint(points))
+    if not triangles:
+        return False
+    # The recorded ridge rise remains the maximum target roof height.
+    # Reaching it ~4m inward creates pitched segments, not a flat roof box.
+    slope = b.rise / max(2.0, min(5.5, min(maxx-minx,maxy-miny)*0.48))
+    count = 0
+    for tri in triangles:
+        if not poly.covers(tri):
+            continue
+        verts = list(tri.exterior.coords)[:3]
+        coords = []
+        for x,y in verts:
+            d = poly.boundary.distance(Point(x,y))
+            z = y_eave + min(b.rise, max(0.0, d*slope))
+            coords.append((x,y,z))
+        if max(v[2] for v in coords) - min(v[2] for v in coords) < 1e-5:
+            # Still retain the eave edge triangles, but avoid degenerates.
+            pass
+        xs = [p[0] for p in coords]
+        ys = [p[1] for p in coords]
+        size = max(ROOF_TEX_M, max(xs)-min(xs), max(ys)-min(ys))
+        uv = [((x-min(xs))/size, (y-min(ys))/size) for x,y,_z in coords]
+        mesh.add_triangle(material, *(g(*p) for p in coords), *uv)
+        count += 1
+    return count > 0
+
+
 def add_roof(mesh: MeshBuilder, b: Building, y_eave: float, frame,
              roof_mat: str | None = None) -> None:
     center, u, v, L, W, W_wall = frame
     cx, cy = center
     mat = roof_mat or b.roof_mat
     if b.complex or b.rect_fill < 0.78:
-        # Courtyard/L-shaped footprints cannot be covered by one gable: use a
-        # flat cap on the real footprint instead of an invented giant roof.
+        # For irregular footprints, follow the true IGN contour and build
+        # a conservative pitched field rather than a huge flat-topped block.
+        if b.roof_type != "flat" and _complex_pitched_roof(
+                mesh, b, y_eave, mat):
+            return
         _flat_cap(mesh, b, y_eave, "roof_flat" if b.roof_type == "flat" else mat)
         return
     flat = (b.roof_type == "flat") or (b.rise < 0.5) or (W < 0.6)
