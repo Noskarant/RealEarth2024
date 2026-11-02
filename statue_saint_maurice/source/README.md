@@ -1,58 +1,69 @@
-# Statue de la Vierge — Saint-Maurice-sur-Dargoire (Chabanière)
+# Statue de la Vierge — Saint-Maurice-sur-Dargoire (Madone du Peu)
 
-Branche indépendante : `feature/vierge-saint-maurice` (base `main`).
-Le décor de Valmorel reste inchangé. La statue aura **son propre package**
-FS2024 pour éviter tout conflit avec `realearth-valmorel-hd`.
+**Modèle retrouvé le 2 novembre 2026 :** l'utilisateur a fourni
+`monument_vierge.gltf`, `monument_vierge.bin`, `monument_vierge.glb`
+et `mesh_Model_4_u1_v1_diffuse.png`. Il s'agit d'une photogrammétrie
+de 297 014 sommets, 563 947 triangles et environ 12,29 m de haut.
+Le fichier glTF externe et le chunk BIN du GLB sont cohérents.
 
-## Déposer le fichier Blender
+## Pourquoi le matériau pouvait apparaître violet
 
-1. Dans Blender, ouvrir le modèle original (.blend).
-2. `Fichier > Données externes > Empaqueter les ressources`
-   (`File > External Data > Pack Resources`), pour embarquer si possible
-   les images des matériaux.
-3. `Fichier > Enregistrer sous`, nom : `vierge_saint_maurice.blend`.
-4. Sur GitHub, sélectionner la branche `feature/vierge-saint-maurice`.
-   Ouvrir ce dossier `statue_saint_maurice/source` et utiliser
-   `Add file > Upload files` pour ajouter le `.blend`.
-   Si le site refuse la taille du fichier, envoyer le fichier en pièce
-   jointe dans la conversation ou pousser par Git depuis le PC.
-   Éviter tout fichier >100 Mo sans Git LFS.
+- Texture référencée directement au niveau racine, sans dossier ModelLib
+  `texture/` conforme au projet du simulateur.
+- Fichier de configuration `*.png.xml` absent : le SDK MSFS 2024
+  ne générait potentiellement pas le KTX2 correspondant.
+- Matériau `alphaMode: BLEND` alors que le PNG est RGBA mais son canal
+  alpha est **entièrement opaque** (255 partout).
+- Extension `KHR_materials_specular` et deux attributs COLOR non
+  nécessaires à l'affichage de la texture de base.
 
-**Important :** ne pas déposer des fichiers Blender dans les sources de
-Valmorel. Le fichier source restera séparé du package compilé.
+Ces points sont corrigés dans l'archive livrée dans la conversation :
+`vierge_saint_maurice_corrigee_MSFS2024.zip`.
 
-## Données nécessaires avant de fixer le placement
+Les originaux et la géométrie sont conservés ; l'image a été convertie
+en RGB sans modifier sa couleur ni son mappage UV.
 
-- Le **point GPS exact** (latitude, longitude, par exemple un lien de
-  coordonnées Google Maps) du **centre de la base du monument**, et non du
-  centre-bourg.
-- La **dimension réelle approximative** du monument (tour / socle et
-  statue, hauteur en mètres).
-- Un ou deux **photos** du monument / de son orientation pour faire
-  correspondre l'axe du modèle à la réalité.
-- Vérifier que le fichier Blender contient le **monument complet** (la
-  base en maçonnerie et la statue), pas seulement la figure de la Vierge.
+## Organisation du dépôt
 
-Ne pas confondre le lac de la Madone avec le monument de la Vierge.
-Les coordonnées d'un centre-ville, du lac ou d'une randonnée ne
-permettent pas de placer précisément la statue dans MSFS.
+Cette branche contient :
+- `statue_saint_maurice/prepare_statue.py` : génère la ModelLib et
+  les XML en utilisant les fichiers 3D dans `source/`.
+- `statue_saint_maurice/compile_statue.py` : appelle le SDK Windows
+  puis vérifie que le fichier KTX2 et les BGL ont été compilés.
+- `statue_saint_maurice/TEST_STATUE.bat` : exécute le test en un clic.
 
-## Travail prévu après réception du modèle
+**Les gros fichiers 3D binaires ne sont pas encore dans cette branche.**
+Ils sont dans l'archive corrigée téléchargeable dans la conversation.
+Extraire le contenu du ZIP à la racine de `D:\RealEarth2024` pour
+obtenir `D:\RealEarth2024\statue_saint_maurice\source\...`.
 
-1. Inspecter les objets Blender, origines, unités, dimensions et matériaux.
-2. Exporter le modèle via le plugin Blender du SDK Microsoft Flight Simulator
-   2024, avec source glTF / bin et dossier `texture` au singulier.
-3. Générer les fichiers de métadonnées `*.png.xml` attendus par le SDK
-   pour la conversion de textures en KTX2.
-4. Générer le `ModelInfo` avec GUID stable et un XML de placement
-   `SceneryObject` aux coordonnées validées, terrain-relative (AGL).
-5. Créer un **package indépendant** avec AssetGroup ModelLib + BGL.
-6. Compiler sur le PC Windows équipé du SDK, contrôler les BGL/KTX2
-   et tester dans MSFS 2024 (orientation, taille, hauteur et textures).
+Ensuite, lancer `statue_saint_maurice\TEST_STATUE.bat` avec FS2024 fermé.
+La compilation de contrôle **n'installe rien dans Community**.
 
-Références officielles :
-- https://docs.flightsimulator.com/msfs2024/html/1_Introduction/Using_The_SDK.htm
-- https://docs.flightsimulator.com/msfs2024/retail/models-and-textures/plugins/blender-plugin/the-blender-plugins/
+Pour les ajouter sur la branche GitHub ultérieurement, les copier dans
+un worktree séparé sur `feature/vierge-saint-maurice`, puis commiter
+les fichiers source. Éviter d'ajouter le projet compilé ou les caches.
 
-La branche et ce document ne constituent **pas** encore un package utilisable
-dans le jeu : il manque le modèle Blender et le point GPS confirmé.
+## Emplacement GPS
+
+Une source municipale confirme qu'il s'agit de la **Madone du Peu**,
+sur la colline du Peu à environ 507 m d'altitude.
+https://www.chabaniere.fr/Patrimoine/168/
+
+**Point GPS exact non confirmé :** `placement.json` est volontairement
+initialisé avec `latitude: null` et `longitude: null`. Le script
+compile la ModelLib sans la placer tant qu'on ne fournit pas une position
+vérifiée au centre de la base du monument. L'altitude 507 m n'est pas
+injectée comme AGL : la pose se fait sur le sol du simulateur.
+
+Ne pas confondre la Madone du Peu avec le lac de la Madone.
+Le fichier original `dsfsdsdf.xml` était un projet SDK vide, pas un
+placement exploitable.
+
+## Statut
+
+- Test local de validité des fichiers JSON, PNG, BIN, XML : réussi.
+- Recréation du projet SDK et test de géolocalisation simulée : réussis.
+- Compilation sur le SDK Windows : **à faire**.
+- Rendu dans MSFS2024 / disparition du violet : **non confirmé**.
+- Emplacement précis et orientation : **à valider**.
