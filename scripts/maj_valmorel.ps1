@@ -222,6 +222,7 @@ try {
 
         Step "Verify Valmorel sources, PNG references, and windows"
         Run-Python "scripts\qa_bourg.py"
+        Run-Python "scripts\qa_ski_importer.py"
 
         Step "Generate 3D models and scenery placements"
         Run-Python "scripts\build_models.py"
