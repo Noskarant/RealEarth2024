@@ -11,7 +11,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-PACK = Path(__file__).resolve().parents[1] / "assets" / "valmorel_complete"
+from window_facades import bake_window_facades
+
+ROOT = Path(__file__).resolve().parents[1]
+PACK = ROOT / "assets" / "valmorel_complete"
+GENERATED = ROOT / "build" / "generated_window_facades"
 
 # pipeline material slot -> pack material name
 SLOT_TO_PACK = {
@@ -64,7 +68,9 @@ def pack_map() -> dict[str, Path]:
         out[slot] = png
     if missing:
         raise FileNotFoundError(f"texture pack incomplete: {sorted(set(missing))}")
-    return out
+    # Generate independent, glazed variants for clustered buildings. The
+    # source PNGs in assets/valmorel_complete are never modified.
+    return bake_window_facades(out, PACK, GENERATED)
 
 
 if __name__ == "__main__":
