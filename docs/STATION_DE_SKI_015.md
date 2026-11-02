@@ -8,7 +8,7 @@ Valmorel 0.1.4 précédemment validé en jeu.
 - **Deux bibliothèques CC0 :**
   - [Alpine Snow Village](https://3dassets.dev/packs/alpine-snow-village), 75 modèles disponibles
   - [Ski Resort and Snow Park](https://3dassets.dev/packs/ski-resort-and-snow-park), 85 modèles disponibles
-- `scripts/ski_assets.py` récupère **22 modèles pertinents** par leurs noms
+- `scripts/ski_assets.py` récupère **23 modèles pertinents** par leurs noms
   depuis les manifests officiels JSON, puis télécharge les GLB source.
   Téléchargement au **premier build sur le PC Windows**, puis cache réutilisé
   dans `build/ski_assets/`.
@@ -99,7 +99,7 @@ Le bouton de mise à jour **ne doit jamais écraser Community si l'une des étap
 ### Résultat attendu dans la console
 
 - `CC0 GLB CONVERTER QA: OK`
-- `CC0 station assets: 22 model types` (nombre exact vérifié)
+- `CC0 station assets: 23 model types` (nombre exact vérifié)
 - `IGN chalet replacements` supérieur ou égal à 8
 - `Ski resort ground props` supérieur ou égal à 12
 - `SKI RESORT MODEL QA: OK`
@@ -138,3 +138,27 @@ la réussite de toutes les étapes.
 **Statut de validation :** correctif du script enregistré, attente du
 nouveau journal Windows pour confirmer le test et le téléchargement
 effectifs des GLB.
+
+## Correctif service OSM — HTTP 502 du 2 novembre 2026
+
+Le premier téléchargement/conversion des **23 modèles CC0** a réussi et le
+pipeline a sélectionné **26 remplacements IGN et 16 accessoires**. La recherche
+Overpass du tracé de la télécabine de Pierrafort a toutefois obtenu un
+`HTTP Error 502: Bad Gateway`. C'est un incident du serveur cartographique
+externe, non une erreur des modèles importés.
+
+`scripts/ski_lifts.py` essaie désormais successivement les instances
+`overpass.private.coffee`, `overpass-api.de` et `lz4.overpass-api.de`,
+avec une relance courte et un cache seulement après vérification de la
+correspondance aux deux terminus connus. Une QA hors réseau,
+`scripts/qa_ski_lifts.py`, simule deux réponses HTTP 502 puis une réponse
+valide et vérifie la reprise sur le serveur suivant et le cache.
+
+**Important :** ce correctif ne modifie pas une compilation déjà en cours.
+Il sera téléchargé automatiquement à la **prochaine ouverture du lanceur**.
+Si les données OSM/IGN ne sont pas accessibles malgré cela, la télécabine
+ne sera pas fabriquée sur un tracé inventé ; le reste du décor peut passer.
+
+Sources sur les instances publiques :
+https://wiki.openstreetmap.org/wiki/Overpass_API
+https://overpass.private.coffee/
