@@ -42,12 +42,27 @@ photogrammétries d'immeubles de Valmorel. Certains modèles contiennent
 de la neige sculptée même en été. Ne pas les confondre avec des façades
 vérifiées individuellement.
 
-Pour éviter de créer de fausses remontées, les éléments `Chairlift Tower`,
-`Gondola Tower`, `Gondola Cabin`, `Lift Top Station` sont **importés dans
-la bibliothèque**, mais **pas encore alignés en longueur** sur des tracés
-non relevés. Les câbles sont donc exclus de ce prototype. Il faudra un tracé
-réel, les altitudes terrain et les points de supports pour reproduire
-correctement les remontées. Aucun câble flottant inventé.
+Pour éviter de créer de fausses remontées, `scripts/ski_lifts.py`
+cherche la **véritable géométrie OSM de Pierrafort** et son profil altimétrique
+RGE ALTI IGN. Seulement si les deux jeux sont disponibles et cohérents, le
+programme génère automatiquement deux câbles immobiles, des pylônes au sol
+et des cabines suspendues statiques. Le contrôle couvre les deux gares
+identifiées indépendamment ; il n'invente pas un alignement quand OSM échoue.
+
+**Attention :** les positions des pylônes et des cabines sont interpolées
+à intervalles réguliers sur le tracé cartographié et ne sont **pas** leurs
+positions d'exploitation exactes. Le câble suit le relief IGN à environ
+9 m au-dessus du terrain ; les altitudes FS2024 peuvent différer de l'IGN.
+Sans données externes fiables, l'intégration saute cette remontée et le
+journal l'indique clairement. Les autres remontées attendent un relevé
+équivalent.
+
+Sources : [OSM Overpass](https://wiki.openstreetmap.org/wiki/Overpass_API),
+[API altimétrique IGN](https://cartes.gouv.fr/aide/fr/guides-utilisateur/utiliser-les-services-de-la-geoplateforme/calcul-altimetrique/),
+[Sommet Pierrafort 1835 m](https://lalecherelesbains.valmorel.com/api/hebergements/Valmorel/Boucle%2Bde%2BRoche%2BBlanche%2B-%2BB13/6616725-27/).
+
+**Attribution données géographiques :** © Contributeurs OpenStreetMap,
+ODbL 1.0 ; © IGN, RGE ALTI, Géoplateforme.
 
 Les positions des props à côté des accès connus sont **illustratives** et
 choisies pour éviter les empreintes de bâtiments : elles ne sont pas
@@ -88,6 +103,7 @@ Le bouton de mise à jour **ne doit jamais écraser Community si l'une des étap
 - `IGN chalet replacements` supérieur ou égal à 8
 - `Ski resort ground props` supérieur ou égal à 12
 - `SKI RESORT MODEL QA: OK`
+- Si données disponibles : `PIERRAFORT GONDOLA: OSM+IGN route verified` ; sinon avertissement et aucune ligne inventée
 - SDK : 2 BGL, les KTX2 du pack Valmorel et la version **0.1.5**
 - `RESULT : OK`, puis `SUCCESS`
 
