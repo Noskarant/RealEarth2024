@@ -150,6 +150,14 @@ def main() -> None:
         total_tris += mesh.triangle_count()
         total_models += 1
 
+    # Fail before SDK/Community installation if the architectural upgrade
+    # accidentally inflates the scene beyond reasonable vertex budgets.
+    # This is a conservative smoke guard, not a guaranteed FPS metric.
+    if total_tris > 4_000_000:
+        raise RuntimeError(
+            f"Scene budget exceeded: {total_tris} IGN triangles (> 4 million)"
+        )
+
     # Append accurate IGN footprint replacements and grounded ski props.
     placements.extend(chalet_replacements.values())
     placements.extend(ski_props)

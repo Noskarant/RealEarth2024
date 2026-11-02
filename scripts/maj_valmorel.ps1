@@ -20,7 +20,7 @@ $PackageDefinition = Join-Path $Root "project\PackageDefinitions\realearth-valmo
 $Compiled = Join-Path $Root "project\Packages\realearth-valmorel-hd"
 $Dist = Join-Path $Root "dist\realearth-valmorel-hd"
 $PackageName = "realearth-valmorel-hd"
-$ExpectedBranch = "feature/valmorel-station-ski"
+$ExpectedBranch = "feature/valmorel-residences-016"
 $BackupRoot = Join-Path $Root "build\backups\community"
 $community = $null
 $stage = $null
@@ -222,6 +222,7 @@ try {
 
         Step "Verify Valmorel sources, PNG references, and windows"
         Run-Python "scripts\qa_bourg.py"
+        Run-Python "scripts\qa_residences.py"
         Run-Python "scripts\qa_ski_importer.py"
         Run-Python "scripts\qa_ski_lifts.py"
 
