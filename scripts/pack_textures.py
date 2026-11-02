@@ -4,15 +4,14 @@ The pack (D:\\RealEarth2024\\assets\\valmorel_complete) is a set of generated,
 freely reusable 1024 px materials. It is not a photographic survey: these are
 stylised surfaces, so a textured building stays a category B reconstruction.
 
-Only the individually modelled core buildings use these textures; the merged
-clusters keep sampled flat colours (see fsgltf.write_gltf), which keeps the
-package small and makes a texture failure easy to contain.
+Both individual buildings and merged clusters use these source textures.
+The SDK must compile their PNG + XML sidecars into runtime KTX2 files.
 """
 from __future__ import annotations
 
 from pathlib import Path
 
-PACK = Path(r"D:\RealEarth2024\assets\valmorel_complete")
+PACK = Path(__file__).resolve().parents[1] / "assets" / "valmorel_complete"
 
 # pipeline material slot -> pack material name
 SLOT_TO_PACK = {
