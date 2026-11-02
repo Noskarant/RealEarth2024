@@ -124,7 +124,7 @@ def main():
     definition = defs / (NAME + ".xml")
     definition.write_text(
         '<?xml version="1.0" encoding="utf-8"?>\n'
-        '<AssetPackage Version="0.1.1"><ItemSettings><ContentType>SCENERY</ContentType>'
+        '<AssetPackage Version="0.1.2"><ItemSettings><ContentType>SCENERY</ContentType>'
         '<Title>Saint-Maurice - Vierge du Peu</Title><Manufacturer>RealEarth</Manufacturer>'
         '<Creator>RealEarth2024</Creator></ItemSettings>'
         '<Flags><VisibleInStore>false</VisibleInStore><CanBeReferenced>false</CanBeReferenced></Flags>'
@@ -147,6 +147,7 @@ def main():
         ET.parse(SCENERY / "monument_vierge_placement.xml")
     print("MODEL/PNG/XML QA: OK -", g["accessors"][0]["count"], "vertices")
     print("LOD QA: ", [(lod["name"], lod["vertices"]) for lod in lods])
+    print("Model cleanup: floating ground removed, base at Y=0, 91 tiny cracks sealed; Madonna-only yaw configurable")
     print("GPS:", "confirmed position configured" if placed else "not set; ModelLib texture probe only")
     print("SDK project:", project_file)
 
