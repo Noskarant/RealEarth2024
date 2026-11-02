@@ -222,6 +222,7 @@ try {
 
         Step "Verify Valmorel sources, PNG references, and windows"
         Run-Python "scripts\qa_bourg.py"
+        Run-Python "scripts\qa_residences.py"
         Run-Python "scripts\qa_ski_importer.py"
         Run-Python "scripts\qa_ski_lifts.py"
 
