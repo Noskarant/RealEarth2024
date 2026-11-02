@@ -279,6 +279,15 @@ try {
             -not (Test-Path -LiteralPath (Join-Path $stage "layout.json"))) {
             throw "Community staging copy is incomplete."
         }
+        $stageKtxCount = @(
+            Get-ChildItem -LiteralPath $stage -Filter "*.KTX2" -File -Recurse
+        ).Count
+        $distKtxCount = @(
+            Get-ChildItem -LiteralPath $Dist -Filter "*.KTX2" -File -Recurse
+        ).Count
+        if ($stageKtxCount -ne $distKtxCount) {
+            throw "Community staging copy has missing KTX2 files. Original add-on unchanged."
+        }
 
         if (Test-Path -LiteralPath $target) {
             $backup = Join-Path $BackupRoot (
