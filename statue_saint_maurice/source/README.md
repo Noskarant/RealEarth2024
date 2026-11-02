@@ -92,3 +92,47 @@ nouvelle version. **Valmorel n'est pas modifié.**
 Statut technique : l'assemblage du ModelInfo, du XML placement avec
 coordonnées synthétiques et du sidecar PNG a été vérifié hors Windows.
 La compilation réelle du SDK et le rendu dans MSFS 2024 restent à valider.
+
+
+## Correctif de visibilité 0.1.1 (2 novembre 2026)
+
+Le premier package a bien produit 2 BGL et 1 texture KTX2, mais la
+capture en jeu ne montre **aucun monument**. L'existence d'un BGL ne
+démontre pas à elle seule que le modèle est affiché.
+
+La cause technique principale soupçonnée est le modèle original de
+**297 014 sommets sans aucun LOD allégé**. La documentation officielle
+explique que MSFS2024 applique un `minSize` effectif basé sur le
+nombre de sommets : un objet dense peut être entièrement masqué à
+distance normale. Voir :
+https://docs.flightsimulator.com/msfs2024/flighting/models-and-textures/modeling/lods/lod-selection-system/
+
+`generate_lods.py` produit désormais quatre versions de visibilité
+à partir des sommets, faces et UV de la photogrammétrie fournie :
+
+| LOD | Sommets vérifiés localement | Triangles | minSize XML |
+| --- | ---: | ---: | ---: |
+| LOD00 | 55 891 | 99 949 | 20 % |
+| LOD01 | 17 165 | 28 082 | 6 % |
+| LOD02 | 5 611 | 7 876 | 2 % |
+| LOD03 | 2 122 | 2 312 | 0,1 % |
+
+L'original reste dans `source/`. Les fichiers de scène générés
+utilisent la texture 4K inchangée et des références d'images
+`texture/monument_vierge_albedo.png`, avec le sidecar de conversion
+KTX2. L'ancienne source `monument_vierge.gltf` trop lourde est
+retirée de la *ModelLib de compilation* pour empêcher son chargement
+comme niveau unique.
+
+Une archive locale `CORRECTIF_VIERGE_INVISIBLE_MSFS2024_v011.zip`
+contient les quatre scripts Python et un seul .bat
+`CORRIGER_ET_INSTALLER_VIERGE.bat`, qui remplace uniquement les scripts
+du projet Windows déjà présent, puis exécute préparation, compilation
+et installation. Aucune manipulation de Valmorel ou de `placement.json`.
+
+**Vérifications locales :** quatre fichiers glTF/BIN cohérents,
+bounds géométriques conservés, chemins PNG valides, XML ModelInfo avec
+quatre LOD. **Encore à tester :** compilation Windows du package 0.1.1,
+taille du BGL de ModelLib et visibilité effective en jeu. Si toujours
+invisible, contrôler aussi le GPS exact en vol et l'activation dans
+Marketplace > My Library > Community.
