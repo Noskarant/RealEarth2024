@@ -24,7 +24,8 @@ from pathlib import Path
 
 import mapbox_earcut as earcut
 import numpy as np
-from shapely.geometry import Polygon, shape
+from shapely.geometry import Polygon, Point, MultiPoint, shape
+from shapely.ops import triangulate
 from shapely.geometry.polygon import orient
 
 from bourg_architecture import apply_bourg_reference_style
@@ -161,6 +162,24 @@ def load_buildings() -> list[Building]:
         )
         _assign_style(b)
         apply_bourg_reference_style(b)
+        # Large multi-storey residences around Valmorel often combine a
+        # pale stone/plaster lower facade with timber upper storeys.
+        # This only substitutes UNKNOWN material codes, never surveyed data.
+        d_from_station = math.hypot(b.east, b.north)
+        unknown_finish = (not b.wall_code.strip().isdigit()
+                          or b.wall_code.strip() in ("00", "90", "99"))
+        if (not b.meta.get("bourg_reference_area")
+                and d_from_station < 1700
+                and b.area >= 200 and b.floors >= 3
+                and b.wall_h >= 7.5 and b.rise >= 0.8
+                and unknown_finish):
+            b.meta["alpine_apartment_style"] = True
+            b.meta["finish_confidence"] = "typological_not_surveyed"
+            b.wall_mat = ("wall_stone" if
+                          deterministic_int(b.bid + ":alpine_apartment") % 4 == 0
+                          else "wall_plaster")
+            if not b.roof_code.strip().isdigit():
+                b.roof_mat = "roof_slate"
         out.append(b)
     _fill_missing_altitudes(out)
     _mark_core(out)
@@ -389,14 +408,84 @@ def _flat_cap(mesh: MeshBuilder, b: Building, y_eave: float, material: str) -> N
     wall_ring(mesh, b.ring, y_eave, y_eave + 0.38, b.wall_mat)
 
 
+def _complex_pitched_roof(mesh: MeshBuilder, b: Building,
+                          y_eave: float, material: str) -> bool:
+    """Pitched roof field constrained to an irregular IGN footprint.
+
+    This is approximate roof geometry, NOT a surveyed roof skeleton.
+    Unlike the old giant flat cap, the height rises inward from the true
+    footprint boundary toward the documented BD TOPO ridge altitude.
+    A capped interior point grid adds stable triangulation on L-shaped
+    buildings while keeping all triangles strictly inside the footprint.
+    """
+    poly = Polygon(b.ring)
+    if not poly.is_valid or poly.area < 15 or b.rise < 0.5:
+        return False
+    minx, miny, maxx, maxy = poly.bounds
+    span = max(maxx-minx, maxy-miny)
+    if span > 180:
+        return False
+    step = max(2.5, min(7.0, math.sqrt(poly.area) / 9.0))
+    # Use stable, bounded sampling to avoid too many triangles in MSFS.
+    points = list(b.ring)
+    nx = max(1, min(30, math.ceil((maxx-minx)/step)))
+    ny = max(1, min(30, math.ceil((maxy-miny)/step)))
+    for ix in range(nx):
+        for iy in range(ny):
+            x = minx + (ix+0.5)*(maxx-minx)/nx
+            y = miny + (iy+0.5)*(maxy-miny)/ny
+            if poly.contains(Point(x, y)):
+                points.append((x, y))
+    if len(points) > 1000:
+        return False
+    triangles = triangulate(MultiPoint(points))
+    if not triangles:
+        return False
+    # The recorded ridge rise remains the maximum target roof height.
+    # Reaching it ~4m inward creates pitched segments, not a flat roof box.
+    slope = b.rise / max(2.0, min(5.5, min(maxx-minx,maxy-miny)*0.48))
+    count = 0
+    for tri in triangles:
+        # Delaunay is unconstrained. Clip any crossing triangles rather than
+        # silently leaving holes around re-entrant corners/courtyards.
+        clipped = tri if poly.covers(tri) else tri.intersection(poly)
+        if clipped.is_empty:
+            continue
+        surfaces = ([clipped] if clipped.geom_type == "Polygon"
+                    else [part for part in getattr(clipped, "geoms", ())
+                          if part.geom_type == "Polygon"])
+        for surface in surfaces:
+            if surface.area < 0.015:
+                continue
+            fragments = [surface] if len(surface.exterior.coords) == 4 else triangulate(surface)
+            for frag in fragments:
+                if not surface.covers(frag) or frag.area < 0.008:
+                    continue
+                coords = []
+                for x,y in list(frag.exterior.coords)[:3]:
+                    d = poly.boundary.distance(Point(x,y))
+                    z = y_eave + min(b.rise, max(0.0, d*slope))
+                    coords.append((x,y,z))
+                xs = [p[0] for p in coords]
+                ys = [p[1] for p in coords]
+                size = max(ROOF_TEX_M, max(xs)-min(xs), max(ys)-min(ys))
+                uv = [((x-min(xs))/size, (y-min(ys))/size) for x,y,_z in coords]
+                mesh.add_triangle(material, *(g(*p) for p in coords), *uv)
+                count += 1
+    return count > 0
+
+
 def add_roof(mesh: MeshBuilder, b: Building, y_eave: float, frame,
              roof_mat: str | None = None) -> None:
     center, u, v, L, W, W_wall = frame
     cx, cy = center
     mat = roof_mat or b.roof_mat
     if b.complex or b.rect_fill < 0.78:
-        # Courtyard/L-shaped footprints cannot be covered by one gable: use a
-        # flat cap on the real footprint instead of an invented giant roof.
+        # For irregular footprints, follow the true IGN contour and build
+        # a conservative pitched field rather than a huge flat-topped block.
+        if b.roof_type != "flat" and _complex_pitched_roof(
+                mesh, b, y_eave, mat):
+            return
         _flat_cap(mesh, b, y_eave, "roof_flat" if b.roof_type == "flat" else mat)
         return
     flat = (b.roof_type == "flat") or (b.rise < 0.5) or (W < 0.6)
@@ -465,7 +554,9 @@ def add_roof(mesh: MeshBuilder, b: Building, y_eave: float, frame,
 
 
 def add_core_details(mesh: MeshBuilder, b: Building, y_base: float, frame) -> None:
-    if b.complex or b.rect_fill < 0.78:
+    # The old guard suppressed ALL 3D windows/balconies on many irregular
+    # residential blocks. Their true IGN edges still support facade details.
+    if b.rect_fill < 0.52 or b.area > 2500:
         return
     ring = b.ring
     n = len(ring)
@@ -541,42 +632,47 @@ def add_core_details(mesh: MeshBuilder, b: Building, y_base: float, frame) -> No
                             (cx + nx * 0.08, cy + ny * 0.08, front_y),
                             u3, v3, up, shop_w, 0.06, 2.10)
 
-    # One balcony row on the longest residential facade, on the real wall.
+    # Wooden balcony bays on the measured main residential wall.
     if edges and not b.heritage and ("Résidentiel" in b.usage or
                                      "Commercial" in b.usage or b.area > 150):
         le, ax, ay, bx, by = edges[0]
         if le >= 4.0:
             ux, uy = (bx - ax) / le, (by - ay) / le
             nx, ny = uy, -ux
-            t = le / 2
             u3 = (ux, uy, 0.0)
             v3 = (-nx, -ny, 0.0)
-            width = min(4.2, le * 0.6)
-            for f in range(1, n_floors):
-                fy = 1.55 + f * 2.85
-                if fy + 1.0 > b.wall_h:
-                    continue
-                c = (ax + ux * t + nx * 0.66, ay + uy * t + ny * 0.66, y_base + fy)
-                add_box_enu(mesh, "balcony_wood", c, u3, v3, up, width, 1.25, 0.16)
-                cr = (ax + ux * t + nx * 1.22, ay + uy * t + ny * 1.22,
-                      y_base + fy + 0.55)
-                if b.meta.get("bourg_reference_area"):
-                    # Open timber balustrade: horizontal rails + spaced posts,
-                    # rather than the opaque one-metre-high solid block.
-                    for rail_height in (0.12, 0.86):
-                        rail_c = (cr[0], cr[1], y_base + fy + rail_height)
-                        add_box_enu(mesh, "balcony_wood", rail_c,
-                                    u3, v3, up, width, 0.10, 0.10)
-                    post_count = max(2, math.ceil(width / 1.05) + 1)
-                    for post_i in range(post_count):
-                        offset = -width / 2 + width * post_i / (post_count - 1)
-                        post_c = (cr[0] + ux * offset, cr[1] + uy * offset,
-                                  y_base + fy + 0.48)
-                        add_box_enu(mesh, "balcony_wood", post_c,
-                                    u3, v3, up, 0.10, 0.11, 0.95)
-                else:
-                    add_box_enu(mesh, "balcony_wood", cr, u3, v3, up,
-                                width, 0.09, 1.0)
+            alpine_style = bool(b.meta.get("alpine_apartment_style")
+                                or b.meta.get("bourg_reference_area"))
+            bay_count = min(7, max(1, int(le // 6.0))) if alpine_style else 1
+            width = min(4.2, (le / bay_count) * 0.7)
+            for bay in range(bay_count):
+                t = le * (bay + 0.5) / bay_count
+                for f in range(1, n_floors):
+                    fy = 1.55 + f * 2.85
+                    if fy + 1.0 > b.wall_h:
+                        continue
+                    c = (ax + ux * t + nx * 0.66,
+                         ay + uy * t + ny * 0.66, y_base + fy)
+                    add_box_enu(mesh, "balcony_wood", c, u3, v3, up,
+                                width, 1.25, 0.16)
+                    cr = (ax + ux * t + nx * 1.22,
+                          ay + uy * t + ny * 1.22, y_base + fy + 0.55)
+                    if alpine_style:
+                        # Slatted open timber balustrades, not opaque slabs.
+                        for rail_height in (0.12, 0.86):
+                            rail_c = (cr[0], cr[1], y_base + fy + rail_height)
+                            add_box_enu(mesh, "balcony_wood", rail_c,
+                                        u3, v3, up, width, 0.10, 0.10)
+                        post_count = max(2, math.ceil(width / 1.05) + 1)
+                        for post_i in range(post_count):
+                            offset = -width / 2 + width * post_i / (post_count - 1)
+                            post_c = (cr[0] + ux * offset, cr[1] + uy * offset,
+                                      y_base + fy + 0.48)
+                            add_box_enu(mesh, "balcony_wood", post_c,
+                                        u3, v3, up, 0.10, 0.11, 0.95)
+                    else:
+                        add_box_enu(mesh, "balcony_wood", cr, u3, v3, up,
+                                    width, 0.09, 1.0)
 
     center, u, v, L, W, W_wall = frame
     cx, cy = center
@@ -606,12 +702,13 @@ def add_building(mesh: MeshBuilder, b: Building, origin_e: float, origin_n: floa
     wall_ring(mesh, ring, y_wall_base, stone_top, "stone_base", tex=2.5)
     main_mat = b.wall_mat if b.core else b.wall_mat + "_win"
     wall_top = y_base + b.wall_h
-    if b.meta.get("bourg_upper_wood") and b.core:
-        # A timber-clad upper storey is a common Valmorel visual pattern.
-        # The decision is intentionally marked as a non-surveyed heuristic.
-        change_y = max(stone_top + 2.6, wall_top - 2.9)
+    if (b.meta.get("bourg_upper_wood") and b.core) or b.meta.get("alpine_apartment_style"):
+        # Reference-informed, but not exact per-building upper-storey wood.
+        change_y = max(stone_top + 2.6, wall_top - 3.1)
+        change_y = min(change_y, wall_top)
         wall_ring(mesh, ring, stone_top, change_y, main_mat)
-        wall_ring(mesh, ring, change_y, wall_top, "wall_wood_honey")
+        upper_mat = "wall_wood" if b.core else "wall_wood_win"
+        wall_ring(mesh, ring, change_y, wall_top, upper_mat)
     else:
         wall_ring(mesh, ring, stone_top, wall_top, main_mat)
     add_roof(mesh, local, wall_top, frame)

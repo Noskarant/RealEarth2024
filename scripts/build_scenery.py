@@ -24,19 +24,23 @@ def main() -> None:
     ]
     for i, p in enumerate(placements):
         gid = instance_guid(f"valmorel:{p['model']}:{i}")
+        snap = "TRUE" if p.get("snap_to_ground", True) else "FALSE"
         lines.append(
             f'    <SceneryObject instanceId="{gid}" lat="{p["lat"]:.9f}" '
-            f'lon="{p["lon"]:.9f}" alt="0.000000" pitch="0.000000" bank="0.000000" '
-            f'heading="0.000000" imageComplexity="NORMAL" altitudeIsAgl="TRUE" '
-            f'snapToGround="TRUE" snapToNormal="FALSE">')
+            f'lon="{p["lon"]:.9f}" alt="{p.get("alt", 0.0):.6f}" pitch="0.000000" bank="0.000000" '
+            f'heading="{p.get("heading", 0.0):.6f}" imageComplexity="NORMAL" altitudeIsAgl="TRUE" '
+            f'snapToGround="{snap}" snapToNormal="FALSE">')
         lines.append(
-            f'        <LibraryObject name="{p["guid"]}" scale="1.000000"/>')
+            f'        <LibraryObject name="{p["guid"]}" scale="{p.get("scale", 1.0):.6f}"/>')
         lines.append('    </SceneryObject>')
 
     # Autogen building exclusion, one rectangle per model's real footprint
     # bounding box (plus a small margin) instead of a fixed-radius guess.
     margin = 6.0
     for p in placements:
+        if p.get("exclude_autogen") is False:
+            # Ground props never wipe out neighbouring buildings.
+            continue
         bx = p.get("bbox")
         if bx is None:
             e = (p["lon"] - LON0) * M_PER_DEG_LON
