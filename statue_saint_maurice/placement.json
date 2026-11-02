@@ -3,5 +3,6 @@
   "longitude": 4.626721,
   "heading_degrees": 0,
   "scale": 1,
-  "agl_offset_m": 0
+  "agl_offset_m": 0,
+  "statue_yaw_degrees": 90
 }
