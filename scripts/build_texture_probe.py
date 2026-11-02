@@ -17,7 +17,15 @@ def main() -> None:
     if ROOT.exists():
         shutil.rmtree(ROOT)
     MODEL.mkdir(parents=True)
-    building = next(b for b in load_buildings() if b.core)
+    bourg_buildings = [
+        b for b in load_buildings()
+        if b.core and b.meta.get("bourg_reference_area")
+    ]
+    if not bourg_buildings:
+        raise RuntimeError("No detailed Bourg reference building found in inventory")
+    building = min(bourg_buildings, key=lambda b: b.meta["bourg_distance_m"])
+    print("Bourg test:", building.bid, building.meta["bourg_distance_m"],
+          "m from hotel, finish:", building.wall_mat)
     mesh = MeshBuilder()
     add_building(mesh, building, building.east, building.north, building.ground)
     write_gltf(MODEL, "texture_probe", mesh, pack_map(), use_textures=True)
@@ -59,6 +67,12 @@ def main() -> None:
     gltf = json.loads((MODEL / "texture_probe.gltf").read_text(encoding="utf-8"))
     print("probe images:", [i["uri"] for i in gltf.get("images", [])])
     print("sidecars:", len(list(texture_dir.glob("*.png.xml"))))
+    if not gltf.get("images"):
+        raise RuntimeError("Probe glTF has no PNG texture references")
+    for img in gltf["images"]:
+        if not (MODEL / img["uri"]).is_file():
+            raise RuntimeError("Missing referenced PNG: " + img["uri"])
+
 
 
 if __name__ == "__main__":
