@@ -21,6 +21,8 @@ sv = (-W * (1.0 - t)) if side < 0 else (W * (1.0 - t))
 ## Autres changements
 - Nombre maximal de bâtiments du coeur de station sélectionnés en modèle détaillé augmenté de 255 à 420, avec priorité aux résidences et au Bourg. La barrière à 4 millions de triangles est conservée.
 - Les résidences hautes admissibles peuvent recevoir le profil typologique de façade alpine même si les données toiture les indiquent plates. Leur hauteur et géométrie de toiture ne sont PAS inventées.
+- Les bâtiments détaillés de forme complexe qui ne reçoivent pas de fenêtres 3D utilisent maintenant un matériau de façade avec fenêtres intégrées plutôt que de rester entièrement aveugles.
+- Jusqu'à 6 façades principales des grandes résidences peuvent désormais porter les ouvertures/balcons 3D, au lieu de 4 en v0.1.6.
 - Test de régression scripts/qa_roofs_017.py intégré avant toute compilation : quatre rotations de toit, convergence au faîtage, normales vers le haut et quota de détails.
 - Génération, sauvegarde de l'ancien package, compilation officielle SDK et remplacement dans Community restent gérés par le lanceur standard ; le package Madone et les autres addons sont hors périmètre.
 
