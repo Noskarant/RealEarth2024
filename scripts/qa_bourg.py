@@ -8,6 +8,9 @@ from __future__ import annotations
 import json
 import tempfile
 from pathlib import Path
+from dataclasses import replace
+
+from PIL import Image, ImageChops
 
 from building_gen import add_building, load_buildings
 from fsgltf import MeshBuilder, write_gltf
@@ -18,6 +21,19 @@ def main() -> None:
     source_pack = pack_map()
     for slot, texture in source_pack.items():
         assert texture.is_file(), f"{slot}: missing {texture}"
+    baked = sorted(slot for slot in source_pack if slot.endswith("_win"))
+    assert baked, "No generated window facade materials"
+    for slot in baked:
+        base_slot = slot[:-4]
+        assert base_slot in source_pack, f"missing plain source for {slot}"
+        assert source_pack[slot] != source_pack[base_slot], (
+            slot, "baked and plain textures use the same file"
+        )
+        with Image.open(source_pack[slot]) as glazed, Image.open(source_pack[base_slot]) as plain:
+            assert ImageChops.difference(glazed.convert("RGB"), plain.convert("RGB")).getbbox(), (
+                slot, "window bitmap is identical to the bare wall"
+            )
+    print("BAKED WINDOW FACADES:", len(baked), "unique wall/window variants OK")
     buildings = load_buildings()
     bourg = [b for b in buildings if b.meta.get("bourg_reference_area")]
     detailed = [b for b in bourg if b.core]
@@ -34,7 +50,8 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="valmorel_bourg_") as tmp:
         out = Path(tmp)
         for label, building in (("bourg_building", source),
-                                ("bourg_commerce", commercial[0])):
+                                ("bourg_commerce", commercial[0]),
+                                ("bourg_distant_facade", replace(source, core=False))):
             mesh = MeshBuilder()
             add_building(mesh, building, building.east, building.north,
                          building.ground)
