@@ -41,6 +41,12 @@ def distance_to_bourg_reference_m(lat: float, lon: float) -> float:
     return math.hypot(east, north)
 
 
+def _unspecified_material(code: str) -> bool:
+    """IGN / inventory may use 'Inconnu' or 90/99 for missing finishes."""
+    code = (code or "").strip()
+    return not code.isdigit() or code in {"", "0", "00", "90", "99"}
+
+
 def apply_bourg_reference_style(b: "Building") -> None:
     """Apply a *plausible*, source-informed resort-centre style, not a survey.
 
@@ -62,7 +68,7 @@ def apply_bourg_reference_style(b: "Building") -> None:
 
     # Use a restrained warm plaster palette for Bourg. Keep an identified
     # stone/wood/plaster material from the inventory when one is present.
-    if not b.wall_code.strip():
+    if _unspecified_material(b.wall_code):
         choice = deterministic_int(b.bid + ":bourg_finish") % 100
         if choice < 73:
             b.wall_mat = BOURG_PLASTER_SLOTS[
@@ -76,10 +82,10 @@ def apply_bourg_reference_style(b: "Building") -> None:
     # Upper-storey timber facing, common in the architecture, is a visual
     # hypothesis for unknown individual facade details.
     b.meta["bourg_upper_wood"] = (
-        not b.wall_code.strip()
+        _unspecified_material(b.wall_code)
         and b.wall_mat.startswith("wall_plaster")
         and b.wall_h >= 6.5
         and deterministic_int(b.bid + ":bourg_upper") % 100 < 65
     )
-    if not b.roof_code.strip() and b.rise >= 0.5:
+    if _unspecified_material(b.roof_code) and b.rise >= 0.5:
         b.roof_mat = "roof_slate"
