@@ -24,7 +24,10 @@ résoudrait donc pas le principal défaut.
 3. Le profil architectural mixte de v0.1.5 n'était appliqué qu'à certaines
    résidences dont le matériau était inconnu et les volumes irréguliers
    ne recevaient presque jamais les détails d'une façade alpine.
-4. Les enduits rosés attribués aléatoirement à la zone de référence du Bourg
+4. La toiture complexe atteignait son faîte seulement 5,5 m après le bord,
+   formant un vaste plateau plat sur les grandes résidences malgré une
+   hauteur de faîte IGN positive.
+5. Les enduits rosés attribués aléatoirement à la zone de référence du Bourg
    produisaient de grosses masses roses excessivement visibles.
 
 ## Changements v0.1.6
@@ -43,6 +46,8 @@ résoudrait donc pas le principal défaut.
   fenêtre exagérément compressée. Les KTX2 existants restent utilisés.
 - Les 3D détaillées de grandes résidences sont limitées à 4 grandes
   façades et 10 fenêtres par travée, pour contenir les triangles.
+- Pour les toitures en L, pente continue vers la crête intérieure
+  estimée de l'empreinte IGN au lieu d'un vaste plateau plat artificiel.
 - Pour les enduits inconnus du Bourg, utilisation de la palette crème /
   ocre / blanc chaud à la place du rose aléatoire.
 - Nouveau contrôle `scripts/qa_residences.py` vérifiant la sélection des
