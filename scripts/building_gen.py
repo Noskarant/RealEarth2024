@@ -175,7 +175,6 @@ def load_buildings() -> list[Building]:
             and 160 <= b.area <= 3000
             and b.wall_h >= 7.0
             and b.floors >= 3
-            and b.rise >= 0.65
             and not any(x in (b.nature + " " + b.usage).lower()
                         for x in ("industri", "agricol", "hangar",
                                   "religieux", "chapelle", "église"))
@@ -283,13 +282,16 @@ def _mark_core(buildings: list[Building]) -> None:
             candidates.append((score, b))
 
     candidates.sort(key=lambda item: item[0])
-    selected = [b for _score, b in candidates[:255]]
+    # 0.1.6 left large parts of the photographed resort as bare merged blocks.
+    # Raise the *prioritised centre* detail budget, not the entire 4398-building
+    # inventory. The downstream 4M-triangle guard still protects compilation.
+    selected = [b for _score, b in candidates[:420]]
     for b in selected:
         b.core = True
     # Detailed models outside this zone are preserved for rare heritage only
     # when capacity is available. No far-away large structures displace the
     # main visual focus around Valmorel.
-    remaining = 260 - len(selected)
+    remaining = 425 - len(selected)
     if remaining > 0:
         distant_heritage = sorted(
             (b for b in buildings
@@ -538,6 +540,8 @@ def add_roof(mesh: MeshBuilder, b: Building, y_eave: float, frame,
             return
         _flat_cap(mesh, b, y_eave, "roof_flat" if b.roof_type == "flat" else mat)
         return
+    # Keep explicitly flat or near-zero-pitch IGN roofs unchanged. Only
+    # correct roof construction where reliable rise data actually exists.
     flat = (b.roof_type == "flat") or (b.rise < 0.5) or (W < 0.6)
     if flat:
         _flat_cap(mesh, b, y_eave, "roof_flat")
@@ -571,7 +575,10 @@ def add_roof(mesh: MeshBuilder, b: Building, y_eave: float, frame,
         su_eave = -L + 2 * L * a
         su_ridge = -ridge_len + 2 * ridge_len * a
         su = su_eave + (su_ridge - su_eave) * t
-        sv = (-W + 2 * W * t) if side < 0 else (W - 2 * W * t)
+        # IMPORTANT: t=1 is the CENTER RIDGE, not the opposite eave.
+        # In v0.1.6 both sides ran across the full roof width, creating
+        # overlapping diagonal sheets and visually flattened roof masses.
+        sv = (-W * (1.0 - t)) if side < 0 else (W * (1.0 - t))
         return p(su, sv, y_eave + rise * t)
 
     for side in (-1, 1):
