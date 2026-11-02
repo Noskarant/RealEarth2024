@@ -1,4 +1,4 @@
-"""Optimise supplied 297k-vertex monument into four MSFS 2024 LODs.
+"""Optimise cleaned statue-only photogrammetry, with independent Madonna rotation.
 
 Original photogrammetry geometry and 4K atlas remain untouched under source/.
 Voxel/UV-aware reduction is a pragmatic visual LOD, not high-precision retopology.
@@ -7,6 +7,10 @@ from __future__ import annotations
 
 import copy
 import json
+import base64
+import hashlib
+import math
+import zlib
 from pathlib import Path
 
 import numpy as np
@@ -87,8 +91,34 @@ def write_lods(model: dict, source_bin: Path, out_dir: Path):
     n = _array(model, raw, "NORMAL", 3).astype("<f4", copy=False)
     uv = _array(model, raw, "TEXCOORD_0", 2).astype("<f4", copy=False)
     faces = _array(model, raw, "INDICES", 1).ravel().reshape(-1, 3)
-    if len(v) != 297014 or len(faces) != 563947:
-        raise ValueError(f"Unexpected photogrammetry size: {len(v)}, {len(faces)}")
+    if (len(v), len(faces)) != (189482, 357173):
+        raise ValueError("Expected the cleaned v0.1.2 tower source (189482 vertices / 357173 triangles); apply the corrected ZIP first.")
+    mask_file = source_bin.parent / "statue_head_mask.json"
+    if not mask_file.is_file():
+        raise FileNotFoundError("statue_head_mask.json is missing: apply the v0.1.2 correction package")
+    meta = json.loads(mask_file.read_text(encoding="utf-8"))
+    if hashlib.sha256(raw).hexdigest() != meta["model_sha256"]:
+        raise ValueError("Statue mask doesn't match this corrected BIN; abort")
+    raw_mask = zlib.decompress(base64.b64decode(meta["packed_zlib_base64"]))
+    head = np.unpackbits(np.frombuffer(raw_mask, dtype=np.uint8), bitorder="big")[:len(v)].astype(bool)
+    if int(head.sum()) != 11630:
+        raise ValueError("Unexpected Madonna component count")
+    placement = json.loads((source_bin.parent.parent / "placement.json").read_text(encoding="utf-8"))
+    yaw = float(placement.get("statue_yaw_degrees", 90.0))
+    if not math.isfinite(yaw) or abs(yaw) > 360:
+        raise ValueError("Invalid statue_yaw_degrees")
+    v = v.copy()
+    n = n.copy()
+    angle = math.radians(yaw)
+    c, sn = math.cos(angle), math.sin(angle)
+    cx, cz = -0.12, -0.16
+    dx, dz = v[head, 0] - cx, v[head, 2] - cz
+    v[head, 0] = cx + c * dx + sn * dz
+    v[head, 2] = cz - sn * dx + c * dz
+    nx, nz = n[head, 0].copy(), n[head, 2].copy()
+    n[head, 0] = c * nx + sn * nz
+    n[head, 2] = -sn * nx + c * nz
+    print(f"Cleaned tower and small holes: {len(v)} vertices / {len(faces)} triangles, Madonna rotated {yaw:+.1f} degrees")
     if np.any(faces >= len(v)) or not (np.isfinite(v).all() and np.isfinite(uv).all()):
         raise ValueError("Invalid 3D vertex/index data")
     out_dir.mkdir(parents=True, exist_ok=True)
