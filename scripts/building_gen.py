@@ -481,12 +481,21 @@ def add_core_details(mesh: MeshBuilder, b: Building, y_base: float, frame) -> No
     up = (0.0, 0.0, 1.0)
     n_floors = max(1, min(b.floors, int(b.wall_h / 2.7) or 1))
     win_w, win_h = 1.0, 1.3
-    for le, ax, ay, bx, by in edges:
+    bourg_commerce = (
+        b.meta.get("bourg_reference_area")
+        and "commercial" in b.usage.lower()
+    )
+    for edge_i, (le, ax, ay, bx, by) in enumerate(edges):
         ux, uy = (bx - ax) / le, (by - ay) / le
         nx, ny = uy, -ux  # outward normal for a CCW ring
         usable = max(0.8, le - 1.8)
         count = max(1, int(usable / 3.2) + 1)
         for f in range(n_floors):
+            if bourg_commerce and edge_i == 0 and f == 0:
+                # The surveyed inventory identifies a commercial building.
+                # Give its longest ground-floor frontage shop glazing rather
+                # than domestic windows; exact storefronts are not surveyed.
+                continue
             wy = 1.45 + f * 2.85
             if wy + win_h / 2 > b.wall_h - 0.25:
                 continue
@@ -511,6 +520,26 @@ def add_core_details(mesh: MeshBuilder, b: Building, y_base: float, frame) -> No
                         )
                         add_box_enu(mesh, "shutter_brown", shutter_c,
                                     u3, v3, up, 0.30, 0.045, win_h)
+
+    if bourg_commerce and edges:
+        le, ax, ay, bx, by = edges[0]
+        if le >= 4.0 and b.wall_h >= 3.1:
+            ux, uy = (bx - ax) / le, (by - ay) / le
+            nx, ny = uy, -ux
+            shop_count = max(1, min(6, int((le - 1.4) / 2.8)))
+            shop_w = min(2.20, max(1.2, (le - 1.4) / shop_count - 0.25))
+            for i in range(shop_count):
+                t = le * (i + 0.5) / shop_count
+                cx = ax + ux * t + nx * 0.12
+                cy = ay + uy * t + ny * 0.12
+                front_y = y_base + 1.50
+                u3 = (ux, uy, 0.0)
+                v3 = (-nx, -ny, 0.0)
+                add_box_enu(mesh, "shop_frame", (cx, cy, front_y),
+                            u3, v3, up, shop_w + 0.16, 0.14, 2.30)
+                add_box_enu(mesh, "glass",
+                            (cx + nx * 0.08, cy + ny * 0.08, front_y),
+                            u3, v3, up, shop_w, 0.06, 2.10)
 
     # One balcony row on the longest residential facade, on the real wall.
     if edges and not b.heritage and ("Résidentiel" in b.usage or
