@@ -119,7 +119,7 @@ def manually_copy_pin():
     print("of the monument base, and click its decimal GPS coordinates.")
     raw = input("Paste latitude, longitude (or Enter to cancel): ").strip()
     match = re.fullmatch(
-        r"\\s*(-?\\d+\\.\\d+)\\s*[,; ]\\s*(-?\\d+\\.\\d+)\\s*", raw
+        r"\s*(-?\d+\.\d+)\s*[,; ]\s*(-?\d+\.\d+)\s*", raw
     )
     if match is None:
         raise ValueError("No valid GPS coordinates were supplied")
