@@ -337,7 +337,17 @@ def wall_ring(mesh: MeshBuilder, ring, y0: float, y1: float, material: str,
         if seg < 1e-4:
             continue
         cols = max(1, math.ceil(seg / tex - 1e-6))
-        u_span = min(1.0, (seg / cols) / tex)
+        # Critical v0.1.5 defect: decorative PNGs have a centred window,
+        # but short facade panels used a partial UV rectangle (e.g. 0..0.25).
+        # This cropped the window OUT, leaving large facades featureless.
+        # A glazed panel uses the whole tile; narrow corners use plain wall.
+        glazed = (material.endswith("_win") and seg >= 1.75
+                  and height >= 1.7)
+        panel_material = (
+            material if glazed else
+            material[:-4] if material.endswith("_win") else material
+        )
+        u_span = 1.0 if glazed else min(1.0, (seg / cols) / tex)
         for c in range(cols):
             t0, t1 = c / cols, (c + 1) / cols
             xa, ya = ax + (bx - ax) * t0, ay + (by - ay) * t0
@@ -349,9 +359,10 @@ def wall_ring(mesh: MeshBuilder, ring, y0: float, y1: float, material: str,
                 p1 = g(xb, yb, za)
                 p2 = g(xb, yb, zb)
                 p3 = g(xa, ya, zb)
-                mesh.add_quad(material, p0, p1, p2, p3,
+                tile_v_span = 1.0 if glazed else v_span
+                mesh.add_quad(panel_material, p0, p1, p2, p3,
                               uvs=((0, 0), (u_span, 0),
-                                   (u_span, v_span), (0, v_span)))
+                                   (u_span, tile_v_span), (0, tile_v_span)))
 
 
 def add_box_enu(mesh: MeshBuilder, material: str, center, u, v, w,
