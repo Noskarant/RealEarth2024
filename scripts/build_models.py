@@ -16,6 +16,7 @@ from materials import generate
 from pack_textures import pack_map
 from ski_assets import build_assets
 from ski_placements import prepare_decorations
+from ski_lifts import build_pierrafort
 
 ROOF_ROUGH = {"roof_slate": 0.72, "roof_metal": 0.38, "roof_tile": 0.82,
               "roof_flat": 0.95, "roof_thatch": 0.9, "stone_base": 0.9}
@@ -62,6 +63,14 @@ def main() -> None:
     chalet_replacements, ski_props = prepare_decorations(buildings, assets)
     if not chalet_replacements or not ski_props:
         raise RuntimeError("Empty ski augmentation; refusing partial build")
+
+    # Gondola only when BOTH mapped OSM geometry and official IGN terrain
+    # elevations can be verified. Failure never creates fabricated routes.
+    try:
+        lift_placements = build_pierrafort(MODEL_SRC, assets)
+    except (OSError, ValueError, KeyError, TypeError, RuntimeError) as exc:
+        lift_placements = []
+        print("NOTICE: no Pierrafort cable/towers added:", exc)
 
     # One MSFS placement = one rigid object with one anchor altitude.
     # Merge only buildings inside the same 100 m cell AND the same 2.5 m
@@ -144,7 +153,8 @@ def main() -> None:
     # Append accurate IGN footprint replacements and grounded ski props.
     placements.extend(chalet_replacements.values())
     placements.extend(ski_props)
-    total_models += len(assets)
+    placements.extend(lift_placements)
+    total_models += len(assets) + (1 if lift_placements else 0)
 
     # MSFS 2024 requires a BitmapConfiguration sidecar for every source PNG.
     # Without it the ModelLib builds, but the runtime texture is not emitted.
@@ -163,6 +173,8 @@ def main() -> None:
         "cc0_asset_types": len(assets),
         "cc0_chalet_replacements": len(chalet_replacements),
         "cc0_resort_props": len(ski_props),
+        "mapped_lift_objects": len(lift_placements),
+        "mapped_lift_cables": sum(p["kind"] == "ski_lift_cables" for p in lift_placements),
         "cc0_import_triangles": sum(asset["triangles"] for asset in assets.values()),
         "core_models": len(core),
         "cluster_models": len(tile_report),
