@@ -289,10 +289,10 @@ try {
         }
 
         Move-Item -LiteralPath $stage -Destination $target
-        $installationFinished = $true
         if (Test-Path -LiteralPath $held) {
             Remove-Item -LiteralPath $held -Recurse -Force
         }
+        $installationFinished = $true
         Step "SUCCESS"
         Write-Host "Valmorel HD v$expectedVersion installed in: $target" -ForegroundColor Green
         Write-Host "FS2024 can now be started. Keep the backup until checked in-game." -ForegroundColor Green
