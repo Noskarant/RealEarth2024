@@ -27,6 +27,7 @@ import numpy as np
 from shapely.geometry import Polygon, shape
 from shapely.geometry.polygon import orient
 
+from bourg_architecture import apply_bourg_reference_style
 from config import (FOUNDATION_DEPTH_M, LAT0, LON0, M_PER_DEG_LAT,
                     M_PER_DEG_LON, RAW, ROOF_TEX_M, WALL_TEX_M,
                     deterministic_int, enu_to_gltf)
@@ -159,6 +160,7 @@ def load_buildings() -> list[Building]:
             complex=bool(rect_fill < 0.62 or area > 4000.0),
         )
         _assign_style(b)
+        apply_bourg_reference_style(b)
         out.append(b)
     _fill_missing_altitudes(out)
     _mark_core(out)
@@ -226,13 +228,28 @@ def _mark_core(buildings: list[Building]) -> None:
             continue
         if b.heritage or d < 520.0 and b.area >= 75.0 or b.area >= 520.0:
             candidates.append((b.area, b))
-    candidates.sort(key=lambda t: -t[0])
-    selected = []
-    for area, b in candidates:
-        if b.heritage or len(selected) < 160:
-            selected.append(b)
-    for b in selected:
+    # Prioritise visual detail along the Bourg reference corridor without
+    # changing the measured footprint or geometry of other resort buildings.
+    bourg = sorted(
+        ((b.meta["bourg_distance_m"], -b.area, b) for _area, b in candidates
+         if b.meta.get("bourg_reference_area")),
+        key=lambda v: (v[0], v[1]),
+    )
+    selected_ids: set[str] = set()
+    for _distance, _neg_area, b in bourg[:85]:
         b.core = True
+        selected_ids.add(b.bid)
+
+    candidates.sort(key=lambda t: -t[0])
+    n_extra = 0
+    for _area, b in candidates:
+        if b.bid in selected_ids:
+            continue
+        if b.heritage or n_extra < 160:
+            b.core = True
+            selected_ids.add(b.bid)
+            if not b.heritage:
+                n_extra += 1
 
 
 # --------------------------------------------------------------------------
@@ -483,6 +500,17 @@ def add_core_details(mesh: MeshBuilder, b: Building, y_base: float, frame) -> No
                             win_w + 0.16, 0.10, win_h + 0.16)
                 c2 = (c[0] + nx * 0.035, c[1] + ny * 0.035, c[2])
                 add_box_enu(mesh, "glass", c2, u3, v3, up, win_w, 0.08, win_h)
+                if b.meta.get("bourg_reference_area") and f > 0:
+                    # Exterior wooden shutters: visible geometry, no photo
+                    # decals or unlicensed signage baked into the textures.
+                    for side in (-1, 1):
+                        shutter_c = (
+                            c[0] + side * ux * (win_w / 2 + 0.20) + nx * 0.07,
+                            c[1] + side * uy * (win_w / 2 + 0.20) + ny * 0.07,
+                            c[2],
+                        )
+                        add_box_enu(mesh, "shutter_brown", shutter_c,
+                                    u3, v3, up, 0.30, 0.045, win_h)
 
     # One balcony row on the longest residential facade, on the real wall.
     if edges and not b.heritage and ("Résidentiel" in b.usage or
@@ -503,7 +531,23 @@ def add_core_details(mesh: MeshBuilder, b: Building, y_base: float, frame) -> No
                 add_box_enu(mesh, "balcony_wood", c, u3, v3, up, width, 1.25, 0.16)
                 cr = (ax + ux * t + nx * 1.22, ay + uy * t + ny * 1.22,
                       y_base + fy + 0.55)
-                add_box_enu(mesh, "balcony_wood", cr, u3, v3, up, width, 0.09, 1.0)
+                if b.meta.get("bourg_reference_area"):
+                    # Open timber balustrade: horizontal rails + spaced posts,
+                    # rather than the opaque one-metre-high solid block.
+                    for rail_height in (0.12, 0.86):
+                        rail_c = (cr[0], cr[1], y_base + fy + rail_height)
+                        add_box_enu(mesh, "balcony_wood", rail_c,
+                                    u3, v3, up, width, 0.10, 0.10)
+                    post_count = max(2, math.ceil(width / 1.05) + 1)
+                    for post_i in range(post_count):
+                        offset = -width / 2 + width * post_i / (post_count - 1)
+                        post_c = (cr[0] + ux * offset, cr[1] + uy * offset,
+                                  y_base + fy + 0.48)
+                        add_box_enu(mesh, "balcony_wood", post_c,
+                                    u3, v3, up, 0.10, 0.11, 0.95)
+                else:
+                    add_box_enu(mesh, "balcony_wood", cr, u3, v3, up,
+                                width, 0.09, 1.0)
 
     center, u, v, L, W, W_wall = frame
     cx, cy = center
@@ -532,8 +576,16 @@ def add_building(mesh: MeshBuilder, b: Building, origin_e: float, origin_n: floa
     stone_top = y_base + min(1.1, max(0.5, b.wall_h * 0.18))
     wall_ring(mesh, ring, y_wall_base, stone_top, "stone_base", tex=2.5)
     main_mat = b.wall_mat if b.core else b.wall_mat + "_win"
-    wall_ring(mesh, ring, stone_top, y_base + b.wall_h, main_mat)
-    add_roof(mesh, local, y_base + b.wall_h, frame)
+    wall_top = y_base + b.wall_h
+    if b.meta.get("bourg_upper_wood") and b.core:
+        # A timber-clad upper storey is a common Valmorel visual pattern.
+        # The decision is intentionally marked as a non-surveyed heuristic.
+        change_y = max(stone_top + 2.6, wall_top - 2.9)
+        wall_ring(mesh, ring, stone_top, change_y, main_mat)
+        wall_ring(mesh, ring, change_y, wall_top, "wall_wood_honey")
+    else:
+        wall_ring(mesh, ring, stone_top, wall_top, main_mat)
+    add_roof(mesh, local, wall_top, frame)
     if b.core:
         add_core_details(mesh, local, y_base, frame)
     tri = len(mesh.groups.get(main_mat, {}).get("idx", [])) // 3
