@@ -226,6 +226,7 @@ try {
         Step "Generate 3D models and scenery placements"
         Run-Python "scripts\build_models.py"
         Run-Python "scripts\build_scenery.py"
+        Run-Python "scripts\qa_ski_resort.py"
 
         Step "Build with the official MSFS 2024 SDK"
         # Never reuse a previous build as evidence of success.
@@ -243,6 +244,12 @@ try {
         Step "Publish and validate the full package"
         Run-Python "scripts\publish_package.py"
         Run-Python "scripts\validate_package.py"
+        $skiStats = Get-Content -LiteralPath (Join-Path $Root "buildings\models_stats.json") -Raw | ConvertFrom-Json
+        if ($skiStats.cc0_asset_types -lt 18 -or
+            $skiStats.cc0_chalet_replacements -lt 8 -or
+            $skiStats.cc0_resort_props -lt 12) {
+            throw "Ski resort augmentation is incomplete. Community not replaced."
+        }
         $distManifest = Get-Content -LiteralPath (Join-Path $Dist "manifest.json") -Raw |
             ConvertFrom-Json
         if ("$($distManifest.package_version)" -ne $expectedVersion) {
