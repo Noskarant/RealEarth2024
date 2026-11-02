@@ -428,23 +428,32 @@ def _complex_pitched_roof(mesh: MeshBuilder, b: Building,
     slope = b.rise / max(2.0, min(5.5, min(maxx-minx,maxy-miny)*0.48))
     count = 0
     for tri in triangles:
-        if not poly.covers(tri):
+        # Delaunay is unconstrained. Clip any crossing triangles rather than
+        # silently leaving holes around re-entrant corners/courtyards.
+        clipped = tri if poly.covers(tri) else tri.intersection(poly)
+        if clipped.is_empty:
             continue
-        verts = list(tri.exterior.coords)[:3]
-        coords = []
-        for x,y in verts:
-            d = poly.boundary.distance(Point(x,y))
-            z = y_eave + min(b.rise, max(0.0, d*slope))
-            coords.append((x,y,z))
-        if max(v[2] for v in coords) - min(v[2] for v in coords) < 1e-5:
-            # Still retain the eave edge triangles, but avoid degenerates.
-            pass
-        xs = [p[0] for p in coords]
-        ys = [p[1] for p in coords]
-        size = max(ROOF_TEX_M, max(xs)-min(xs), max(ys)-min(ys))
-        uv = [((x-min(xs))/size, (y-min(ys))/size) for x,y,_z in coords]
-        mesh.add_triangle(material, *(g(*p) for p in coords), *uv)
-        count += 1
+        surfaces = ([clipped] if clipped.geom_type == "Polygon"
+                    else [part for part in getattr(clipped, "geoms", ())
+                          if part.geom_type == "Polygon"])
+        for surface in surfaces:
+            if surface.area < 0.015:
+                continue
+            fragments = [surface] if len(surface.exterior.coords) == 4 else triangulate(surface)
+            for frag in fragments:
+                if not surface.covers(frag) or frag.area < 0.008:
+                    continue
+                coords = []
+                for x,y in list(frag.exterior.coords)[:3]:
+                    d = poly.boundary.distance(Point(x,y))
+                    z = y_eave + min(b.rise, max(0.0, d*slope))
+                    coords.append((x,y,z))
+                xs = [p[0] for p in coords]
+                ys = [p[1] for p in coords]
+                size = max(ROOF_TEX_M, max(xs)-min(xs), max(ys)-min(ys))
+                uv = [((x-min(xs))/size, (y-min(ys))/size) for x,y,_z in coords]
+                mesh.add_triangle(material, *(g(*p) for p in coords), *uv)
+                count += 1
     return count > 0
 
 
