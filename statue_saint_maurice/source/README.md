@@ -67,3 +67,28 @@ placement exploitable.
 - Compilation sur le SDK Windows : **à faire**.
 - Rendu dans MSFS2024 / disparition du violet : **non confirmé**.
 - Emplacement précis et orientation : **à valider**.
+
+## Lien fourni pour le placement (2 novembre 2026)
+
+Lien Google Maps communiqué par l'utilisateur :
+https://maps.app.goo.gl/jKMSu8kzVjR1cien6
+
+Le raccourci Google Maps ne pouvait pas être développé depuis notre
+environnement serveur : **ne pas convertir un centre de carte en
+coordonnées du socle**. Un système indépendant `resolve_google_maps.py`
+a été ajouté pour suivre le lien depuis le PC Windows. Si le lien ne
+contient aucune épingle GPS exploitable, le programme demande de copier
+manuellement les coordonnées depuis un clic droit sur le centre de la tour.
+
+La version HD 4K du monument avec `LOCALISER_COMPILER_INSTALLER.bat`
+est livrée dans une archive de conversation séparée :
+`vierge_saint_maurice_4K_GPS_installation.zip`.
+Elle comprend les fichiers 3D binaires et la texture, absents de GitHub.
+Extraire l'archive dans `D:\RealEarth2024`, puis lancer le .bat avec
+FS2024 fermé. Il résout la position, compile, vérifie le KTX2, choisit le
+Community actif, sauvegarde l'ancien package de la statue et installe la
+nouvelle version. **Valmorel n'est pas modifié.**
+
+Statut technique : l'assemblage du ModelInfo, du XML placement avec
+coordonnées synthétiques et du sidecar PNG a été vérifié hors Windows.
+La compilation réelle du SDK et le rendu dans MSFS 2024 restent à valider.
