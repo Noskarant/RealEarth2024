@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import json
 import shutil
+import sys
+from dataclasses import replace
 from pathlib import Path
 
 from building_gen import add_building, load_buildings
@@ -26,6 +28,14 @@ def main() -> None:
     building = min(bourg_buildings, key=lambda b: b.meta["bourg_distance_m"])
     print("Bourg test:", building.bid, building.meta["bourg_distance_m"],
           "m from hotel, finish:", building.wall_mat)
+    if "--window-facade" in sys.argv:
+        # Same measured geometry, but deliberately use the distant-building
+        # material path to test baked windows through the official SDK.
+        building = replace(building, core=False)
+        print("Probe mode: baked *_win facade (no detailed window geometry)")
+    else:
+        print("Probe mode: existing detailed core facade")
+
     mesh = MeshBuilder()
     add_building(mesh, building, building.east, building.north, building.ground)
     write_gltf(MODEL, "texture_probe", mesh, pack_map(), use_textures=True)
