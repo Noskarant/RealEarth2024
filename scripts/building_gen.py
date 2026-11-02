@@ -269,7 +269,7 @@ def _mark_core(buildings: list[Building]) -> None:
         # geometry cannot be given the same window detail as a small residence.
         if b.area > 3000 or b.rect_fill < 0.45:
             continue
-        if d <= 1800 and (b.area >= 120 or b.heritage
+        if d <= 1800 and (b.area >= 85 or b.heritage
                           or b.meta.get("resort_residence_style")):
             # Resort residences get priority; near-centre buildings outrank
             # distant industrial halls regardless of gross floor area.
