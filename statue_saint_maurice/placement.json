@@ -1,7 +1,7 @@
 {
-  "latitude": null,
-  "longitude": null,
+  "latitude": 45.583269,
+  "longitude": 4.626721,
   "heading_degrees": 0,
-  "scale": 1.0,
-  "agl_offset_m": 0.0
+  "scale": 1,
+  "agl_offset_m": 0
 }
