@@ -3,7 +3,7 @@ setlocal
 cd /d "%~dp0"
 echo.
 echo =============================================================
-echo   VALMOREL HD - MAJ COMPLETE POUR MSFS 2024
+echo   VALMOREL HD 0.1.7 - TOITURES ET FACADES CORRIGEES
 echo =============================================================
 echo.
 echo Fermer completement MSFS 2024 avant de continuer.
