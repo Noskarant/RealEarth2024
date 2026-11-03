@@ -1,21 +1,16 @@
-# Clocher de Saint-Maurice-sur-Dargoire — Photo V1
+# Saint-Maurice-sur-Dargoire — clocher photo-texturé V2 (prototype)
 
-**Modèle indépendant pour MSFS 2024.** À partir du `.blend` / `.glb` fourni par l'utilisateur (17 maillages, hauteur du modèle 23,25 m), préparation d'une ModelLib avec 7 textures **dérivées des photographies transmises**, et un installateur Windows validant les BGL, KTX2, manifest et layout du SDK.
+Le projet modifie la géométrie glTF existante fournie par l'utilisateur, pas la chapelle ou la Madone. La V2 réemploie les mêmes photographies pour les quatre faces similaires du clocher, avec baies ogivales photo-projetées, cadran photographique répété et UV de la flèche recalculés pour des bandes horizontales de tuiles rouges et crème.
 
-## État
-- **Préparé hors SDK** : source Blender, GLTF/BIN texturé, 2 LOD, sidecars PNG XML, projet Scenery BGL et installateur.
-- **Tests locaux réussis** : intégrité GLTF/BIN et UV, 7 textures, sécurité de désactivation du mod Nature et parsing XML.
-- **Restent à tester sur Windows** : compilation réelle SDK, localisation du clocher et rendu dans MSFS 2024.
-- **Position GPS** : la référence OpenStreetMap de l'église `45.58293, 4.63136` est le centre du **bâtiment**, non une position précise du clocher. Le lanceur permet une saisie manuelle et signale une pose approximative.
-- **Nature 1 km** : le ZIP privé contient un outil de désactivation qui sauvegarde le mod `realearth-saint-maurice-nature` hors Community. Rien ne touche à la chapelle, à la Madone, aux bancs, aux bâtiments existants ou à Valmorel.
+- **Livraison** : ZIP privé `CLOCHER_SAINT_MAURICE_PHOTO_TEXTURES_V2.zip`, partagé dans la conversation avec les sources 3D, les textures dérivées et l'installateur Windows.
+- **Contenu** : GLB photo-texturé exporté, source GLB et Blender originaux inchangés, glTF/BIN ModelLib, 2 LOD, 10 textures photo, projet SDK et scripts de vérification/installation.
+- **Test hors SDK** : validation structurelle (15 tests), intégrité des glTF/BIN, rendu de prévisualisation hors simulateur.
+- **Test restant** : compiler avec le SDK MSFS 2024 sous Windows, contrôler le placement GPS et le rendu réel, vérifier un éventuel chevauchement avec l'église native.
+- **GPS** : le centroïde OSM `45.58293, 4.63136` concerne le bâtiment de l'église, **pas** le clocher ; il ne doit pas être présenté comme une position vérifiée du clocher.
+- **Indépendance** : aucun fichier de la Madone, des bancs, des bâtiments, du terrain ou de Valmorel n'est modifié. Le ZIP désactive le mod `realearth-saint-maurice-nature` uniquement après sauvegarde, et propose aussi un lanceur séparé.
 
-## Publication des assets
-La livraison complète (photos, .blend, .glb, .bin, 7 PNG et scripts) a été fournie sous ZIP dans la conversation de travail. Les droits de redistribution **publique** des photographies transmises n'ont pas été vérifiés. Pour éviter de republier des photos potentiellement protégées dans ce dépôt public, les fichiers photos et les textures dérivées ne sont pas commités dans cette branche. Les sources doivent être diffusées uniquement avec autorisation appropriée.
+**Limite de fidélité** : il s'agit d'un modèle photo-texturé basé sur une géométrie simplifiée, et non d'une photogrammétrie détaillée comparable à celle de la Madone. Les images des faces non photographiées sont réutilisées des côtés similaires.
 
-## Sources et SDK
-- Clocher et restauration après 1955 : https://fr.geneawiki.com/wiki/69_-_Saint-Maurice-sur-Dargoire
-- Centre du bâtiment de l'église : https://mapcarta.com/fr/W138334703
-- Documentation Microsoft Flight Simulator 2024 : https://docs.flightsimulator.com/msfs2024/retail/content-configuration/models/scenery-model-xml-and-cfg-setup/
+**Licence / publication GitHub** : les photos envoyées et textures dérivées n'ont pas de licence de republication publique vérifiée ; elles ne sont pas publiées sur ce dépôt public. Les fichiers du projet complet restent dans le ZIP privé.
 
-## Nom du package
-`realearth-saint-maurice-clocher-photo` (ModelLib + placement séparé).
+Référence descriptive : https://fr.geneawiki.com/wiki/69_-_Saint-Maurice-sur-Dargoire
