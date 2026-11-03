@@ -1,0 +1,9 @@
+# Photos source / dérivés privés : droits de redistribution non vérifiés.
+source/photos_fournies/
+source/*.blend
+source/*.glb
+sdk_project/PackageSources/Scenery/saint_maurice/modellib/texture/*.png
+sdk_project/PackageSources/Scenery/saint_maurice/modellib/*.bin
+sdk_project/Packages/
+sdk_project/_PackageInt/
+backups/
