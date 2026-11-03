@@ -1,0 +1,12 @@
+{
+  "latitude": null,
+  "longitude": null,
+  "heading_degrees": 0,
+  "scale": 1,
+  "agl_offset_m": 0,
+  "approximate_church_center": [
+    45.58293,
+    4.63136
+  ],
+  "note": "building centroid only; bell tower GPS must be checked"
+}
