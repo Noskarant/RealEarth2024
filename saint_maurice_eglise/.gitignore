@@ -1,0 +1,9 @@
+# Modèle et textures fournis dans le ZIP privé, pas dans ce dépôt public.
+source/*.glb
+project/PackageSources/Scenery/saint_maurice_eglise/modellib/texture/*.png
+project/PackageSources/Scenery/saint_maurice_eglise/modellib/*.bin
+project/Packages/
+project/_PackageInt/
+dist/
+backups/
+__pycache__/
