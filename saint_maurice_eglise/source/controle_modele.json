@@ -1,0 +1,13 @@
+{
+  "node_sol_id": [
+    72
+  ],
+  "model_guid": "{1FEB53CB-518C-55EA-A216-AE1ED4F3BB65}",
+  "model_center_offset_x_m": 10.935,
+  "model_center_offset_z_m": -7.65,
+  "original_glb_sha256": "08ca93f1fa31bc47e79b26b8d46aca48d84c1b23310e3583fef613be86b60e52",
+  "original_mesh_count": 40,
+  "image_count": 8,
+  "active_scene_root_nodes": 72,
+  "source_glb_size_bytes": 406308
+}
