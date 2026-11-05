@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModelInfo guid="{1feb53cb-518c-55ea-a216-ae1ed4f3bb65}" version="1.1">
+  <LODS>
+    <LOD minSize="0.0" modelFile="eglise_saint_maurice.gltf"/>
+  </LODS>
+</ModelInfo>
