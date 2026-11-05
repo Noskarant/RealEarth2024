@@ -1,7 +1,7 @@
 {
   "latitude": 45.58294444444445,
   "longitude": 4.631222222222222,
-  "heading_degrees": 0,
+  "heading_degrees": 180,
   "agl_offset_m": 0,
   "remove_default_buildings": true,
   "exclude_placed_buildings": true,
