@@ -20,13 +20,13 @@ if (-not (Get-Command py -ErrorAction SilentlyContinue)) {
 }
 if (-not (Test-Path '.venv')) { & py -3 -m venv .venv }
 $Python = Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
-Run-Python @('-m','pip','install','-r','requirements-ortho.txt')
-Run-Python @('-m','pytest','-q')
-Run-Python @('prepare_zone.py')
+Run-Python -ArgsList @('-m','pip','install','-r','requirements-ortho.txt')
+Run-Python -ArgsList @('-m','pytest','-q')
+Run-Python -ArgsList @('prepare_zone.py')
 
 # Download genuine IGN BD TOPO, never rebuild from synthetic fixture.
 if (-not (Test-Path 'data\ign_buildings.geojson')) {
-    Run-Python @('generate.py','fetch')
+    Run-Python -ArgsList @('generate.py','fetch')
 } else {
     Write-Host 'IGN batiments locaux : utilisation des donnees existantes.'
 }
@@ -34,13 +34,13 @@ $Source = 'data\ign_buildings.geojson'
 
 # Optional IGN LiDAR HD 0.5 m MNT and MNS: exported lists from IGN tile portal.
 if ((Test-Path 'data\lidar\mnt_urls.txt') -and (Test-Path 'data\lidar\mns_urls.txt')) {
-    Run-Python @('lidar_download.py','data\lidar\mnt_urls.txt','--output','data\lidar\mnt')
-    Run-Python @('lidar_download.py','data\lidar\mns_urls.txt','--output','data\lidar\mns')
-    Run-Python @('lidar_mosaic.py','data\lidar\mnt','--output','data\lidar\mnt_0m50.tif')
-    Run-Python @('lidar_mosaic.py','data\lidar\mns','--output','data\lidar\mns_0m50.tif')
+    Run-Python -ArgsList @('lidar_download.py','data\lidar\mnt_urls.txt','--output','data\lidar\mnt')
+    Run-Python -ArgsList @('lidar_download.py','data\lidar\mns_urls.txt','--output','data\lidar\mns')
+    Run-Python -ArgsList @('lidar_mosaic.py','data\lidar\mnt','--output','data\lidar\mnt_0m50.tif')
+    Run-Python -ArgsList @('lidar_mosaic.py','data\lidar\mns','--output','data\lidar\mns_0m50.tif')
 }
 if ((Test-Path 'data\lidar\mnt_0m50.tif') -and (Test-Path 'data\lidar\mns_0m50.tif')) {
-    Run-Python @('lidar_roofs.py','--source',$Source,
+    Run-Python -ArgsList @('lidar_roofs.py','--source',$Source,
         '--mnt','data\lidar\mnt_0m50.tif','--mns','data\lidar\mns_0m50.tif',
         '--output','data\ign_buildings_lidar.geojson')
     $Source = 'data\ign_buildings_lidar.geojson'
@@ -50,18 +50,18 @@ if ((Test-Path 'data\lidar\mnt_0m50.tif') -and (Test-Path 'data\lidar\mns_0m50.t
 }
 
 # Import all valid buildings from the 3000m circle (no 200-building cap).
-Run-Python @('generate.py','build','--source',$Source,'--limit','0')
+Run-Python -ArgsList @('generate.py','build','--source',$Source,'--limit','0')
 if (-not $SansPaysage) {
-    Run-Python @('landscape.py','all')
+    Run-Python -ArgsList @('landscape.py','all')
 }
 # OSM details: only real mapped hedges/walls; if Overpass is rate-limited,
 # keep the successful IGN build and write the error to an explicit local log.
 if (-not $SansOSM) {
     try {
         if (Test-Path 'data\osm_microdetails.json') {
-            Run-Python @('osm_microdetails.py','build')
+            Run-Python -ArgsList @('osm_microdetails.py','build')
         } else {
-            Run-Python @('osm_microdetails.py','all')
+            Run-Python -ArgsList @('osm_microdetails.py','all')
         }
     } catch {
         $msg = "OSM non disponible : $($_.Exception.Message)"
@@ -73,17 +73,17 @@ if (-not $SansOSM) {
 if (-not $SansOrthophoto) {
     Write-Host 'ORTHOPHOTO IGN 20 cm : cercle complet de 3000m en 16-bit PNG LOD20.'
     Write-Host 'Le nombre de tuiles est important. Le telechargement est reprenable.'
-    Run-Python @('fetch_ortho_ign.py','--radius','3000','--max-tiles','60000')
+    Run-Python -ArgsList @('fetch_ortho_ign.py','--radius','3000','--max-tiles','60000')
 }
-Run-Python @('valider_sortie.py')
-Run-Python @('build_quality_report.py')
+Run-Python -ArgsList @('valider_sortie.py')
+Run-Python -ArgsList @('build_quality_report.py')
 Write-Host 'Sources SDK construites. Aucun ancien mod ni fichier du simulateur modifie.'
 
 $Project = Join-Path $PSScriptRoot 'output\realearth-saint-maurice-hd.xml'
 if ($Compiler) {
-    if (-not $SDKTool) {
+    if (-not $SDKTool -and $env:MSFS_SDK_ROOT) {
         $candidate = Join-Path $env:MSFS_SDK_ROOT 'Tools\bin\fspackagetool.exe'
-        if ($env:MSFS_SDK_ROOT -and (Test-Path $candidate)) { $SDKTool = $candidate }
+        if (Test-Path $candidate) { $SDKTool = $candidate }
     }
     if (-not $SDKTool -or -not (Test-Path $SDKTool)) {
         throw 'Compilation : fournir -SDKTool chemin\vers\fspackagetool.exe (SDK FS2024).'
