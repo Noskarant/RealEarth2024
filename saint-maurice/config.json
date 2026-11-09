@@ -12,7 +12,8 @@
     4.671809,
     45.6102693
   ],
-  "core_radius_m": 900,
+  "core_radius_m": 1300,
+  "experimental_pbr_textures": true,
   "cluster_cell_m": 75,
   "cluster_alt_band_m": 1.5,
   "max_buildings_prototype": 200,

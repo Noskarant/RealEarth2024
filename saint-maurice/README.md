@@ -1,86 +1,103 @@
-# REAL EARTH — Saint-Maurice-sur-Dargoire HD, bourg + 3 km (MSFS 2024)
+# REAL EARTH — SAINT-MAURICE HD 3 KM ULTRA (FS2024)
 
-**Version sources 0.2 — 9 novembre 2026.** Générateur local IGN → bâtiments 3D → projet SDK MSFS2024, avec protections des monuments existants et option orthophoto CGL. **Ce ZIP n'est pas un mod `Community` prêt à l'emploi.**
+**Statut au 9 novembre 2026 : SOURCES ET OUTILS DE PRÉPARATION, PAS UN MOD PRÊT À INSTALLER.**
 
-## Ce qui est livré et testé
+Objectif : recréer le **cercle complet de rayon 3 000 m autour du centre de Saint-Maurice-sur-Dargoire** (28,27 km²), avec un rendu aérien et à basse altitude nettement plus reconnaissable que la scène standard.
 
-- **Périmètre exact** : cercle de rayon **3 000 m** centré sur le bourg / église de Saint-Maurice-sur-Dargoire, **45.5829444 N, 4.6312222 E**, soit environ **28,27 km²**. Le téléchargement WFS utilise une boîte englobante, mais le filtre final utilise les distances métriques Lambert-93.
-- **Maisons et fermes** : emprises réelles BD TOPO/IGN ; hauteur et différence faîtage/égout si renseignées ; estimation clairement étiquetée autrement. Toits en pente et palettes de tuiles terre cuite, murs d'enduit/pierre stylisés. **Le toit et les façades individuels ne sont pas photogrammétriques.**
-- **Optimisation** : les bâtiments centraux situés à **900 m ou moins** restent des objets individuels. Au-delà : regroupement par cellule de **75 m** et bande d'altitude IGN de **1,5 m**, pour réduire les objets et limiter le risque de maisons flottantes.
-- **Protection impérative des modèles existants** : le générateur saute les empreintes voisines de l'église (**45.5829444, 4.6312222**) et de la Madone du Peu (**45.583269, 4.626721**), y compris chapelle et bancs à proximité. Les marges de sécurité utilisées sont de **45 m** et **65 m**. Aucun ancien dossier `realearth-saint-maurice-eglise`, `realearth-saint-maurice-vierge`, `realearth-saint-maurice-bancs` ni `realearth-valmorel-hd` n'est modifié.
-- **Contrôle local** : tests automatiques, validation des coordonnées, des buffers glTF et des rectangles d'exclusion des objets protégés.
-- **Option orthophoto** : convertisseur d'un GeoTIFF RGB géoréférencé, avec droits d'utilisation vérifiés, en **tuiles PNG 16 bits LOD20** + configuration CGL pour le SDK. **Aucune image IGN n'est incluse dans le ZIP.**
+Ce projet est **autonome** : il n'édite pas les modèles existants de l'église, de la Madone du Peu, de la chapelle, des bancs, ni Valmorel. Leurs secteurs sont **protégés contre la génération des bâtiments et de la végétation**.
 
-**Tests dans l'environnement de préparation : 8 réussis**, y compris l'export glTF synthétique, le cluster, la protection des deux monuments, et le codage PNG RGBA16. Aucune donnée IGN de Saint-Maurice n'a été téléchargée ici, et **aucune compilation ou validation réelle dans FS2024 n'a été effectuée**.
+## Ce que produit le programme
 
-## Un clic sur Windows — préparation du mod complet
+| Couche | Donnée officielle / méthode | Usage | État |
+|---|---|---|---|
+| Bâtiments | IGN BD TOPO v3 WFS | Géométrie des emprises réelles, volumes, hauteurs si renseignées | Générateur codé et testé avec données fictives |
+| Toits et murs | Matériaux PBR originaux procéduraux, tuiles de terre cuite/ardoise, enduit et pierre | Visibilité améliorée en vol rapproché | glTF exporté avec images ; SDK à valider |
+| Doubles bâtiments | Polygones FS2024 : `ExcludeDetectedBuildings`, `ExcludeOSMBuildings` | Retire les bâtiments procéduraux sous les nouveaux volumes | XML vérifié, rendu SDK à valider |
+| Orthophotos 20 cm | IGN BD ORTHO WMS, `HR.ORTHOIMAGERY.ORTHOPHOTOS` | 40 633 tuiles SDK quadkey niveau LOD20, PNG 16 bits, fondu à 3 km | Téléchargeur testé sur serveur simulé ; vraie IGN non téléchargée ici |
+| Bois et forêts | IGN BD TOPO, `zone_de_vegetation` | Polygones d'arbres FS2024 d'après zones réelles | XML généré et testé sur données fictives |
+| Routes, ruisseaux, plans d'eau | IGN BD TOPO | GeoJSON d'audit pour corriger le terrain/sol dans Scenery Editor | Extracteur testé, **pas de modification forcée du décor natif** |
+| Toits LiDAR HD | IGN LiDAR HD MNT+MNS GeoTIFF 50 cm ou nuages classés LAZ | Hauteurs du sol, égouts et faîtages estimées statistiquement | Chaîne optionnelle testée sur petit rasters fictifs |
+| Relief | Terrain natif FS2024 conservé tant que la correspondance vertical datum / terrain n'est pas validée | Évite les ruptures de terrain irréversibles | Pas encore de remplacement automatique du terrain |
+| Monuments existants | Modèles précédents | Église, Madone, chapelle, bancs inchangés | Aucun fichier original modifié |
 
-Prérequis : Windows 11, Python 3.11/3.12 installé, internet pour l'IGN, FS2024 + SDK pour compiler.
+**Attention** : une emprise 3D n'est pas de la photogrammétrie. Les façades, fenêtres, cheminées et pentes exactes de chaque maison ne peuvent pas être garanties sans photographies / mesures supplémentaires. Les ortho IGN améliorent *la vue du sol*, pas les façades.
 
-1. Extraire cette archive dans un dossier **distinct**, par exemple `D:\RealEarth-SaintMaurice-HD`. Ne surtout pas fusionner avec le dossier de l'église ou de la Madone.
-2. Double-cliquer sur **`DEMARRER_TEST_3KM.bat`** (ou lancer `LANCER_QUALITE_WINDOWS.ps1` depuis PowerShell). Cela installe les dépendances Python dans `.venv`, crée les cartes du rayon et des monuments protégés, lance les tests, télécharge les données IGN, construit **tous les bâtiments du rayon de 3 km** et vérifie les sorties. Il **n'installe rien dans Community**.
-3. Ouvrir le projet généré `output\realearth-saint-maurice-hd.xml` dans le SDK FS2024, puis **Build Package**. Examiner les erreurs, vérifier qu'il n'y a pas de doublons natifs et inspecter la zone en vol avant d'installer le résultat compilé dans Community. Les rectangles d'exclusion de bâtiments génériques ne garantissent pas à eux seuls l'effacement de tous les bâtiments auto-détectés : des ajustements dans le Scenery Editor peuvent être nécessaires.
+## Installation des OUTILS sur ton PC Windows
 
-### Compilation facultative en ligne de commande
+Prérequis : Python 3.11/3.12 64 bits, connexion Internet, espace disque disponible, MSFS2024 avec SDK et Developer Mode.
 
-Lorsque le chemin du SDK est connu :
+1. Extraire l'archive dans un dossier de travail, par exemple `D:\RealEarth-SaintMaurice-Ultra`.
+2. Double-cliquer sur **`DEMARRER_ULTRA_3KM.bat`**. La commande crée un environnement Python, lance les tests, télécharge les bâtiments et couches IGN puis génère les **40 633 images aériennes**, sauf si une interruption survient (reprise possible).
+3. Ouvrir le fichier produit **`output\realearth-saint-maurice-hd.xml`** dans le Project Editor SDK de FS2024 et compiler les groupes BGL, ModelLib, CGL. Contrôler les logs.
+4. Installer seulement le dossier **compilé** `output\Packages\realearth-saint-maurice-hd` dans `Community`, et uniquement après validation visuelle.
+5. Contrôler les bâtiments côte à côte avec le jeu natif, les pentes et le rendu des matériaux. Désactiver le nouveau package en cas de conflit, sans toucher aux anciens.
+
+Le téléchargement orthophoto représente **environ 40 600 tuiles et plusieurs gigaoctets** ; ne pas le lancer sur une connexion limitée ou avec un stockage faible. Les services de l'IGN peuvent limiter les requêtes ; le script reprend les fichiers déjà enregistrés. Le chiffre de 40 633 est dérivé du périmètre/LOD et peut varier si les paramètres changent.
+
+### Commandes utiles
 
 ```powershell
-.\LANCER_QUALITE_WINDOWS.ps1 -Compiler -SDKTool "C:\chemin\vers\fspackagetool.exe"
-```
+# Préparer toutes les maisons et paysages, mais SANS les dizaines de milliers de tuiles :
+.\LANCER_ULTRA_WINDOWS.ps1 -SansOrthophoto
 
-L'exécutable est normalement dans le SDK FS2024, `Tools\bin`. Consulter son rapport de compilation ; ne pas déclarer le mod prêt si le build échoue. Ne pas remplacer les packages de l'église et de la Madone.
+# Générer toute la zone, orthophoto IGN incluse :
+.\LANCER_ULTRA_WINDOWS.ps1
 
-### Tester d'abord 200 bâtiments
+# Calculer le nombre de tuiles sans télécharger :
+.\.venv\Scripts\python.exe fetch_ortho_ign.py --dry-run
 
-```powershell
-.\.venv\Scripts\python.exe generate.py fetch
-.\.venv\Scripts\python.exe generate.py build --limit 200
+# Compiler après création des sources si chemin SDK connu :
+.\LANCER_ULTRA_WINDOWS.ps1 -Compiler -SDKTool 'C:\chemin\vers\fspackagetool.exe'
+
+# Vérifier avant SDK :
 .\.venv\Scripts\python.exe valider_sortie.py
+.\.venv\Scripts\python.exe build_quality_report.py
 ```
 
-Tous les bâtiments : `generate.py build --limit 0` (ou le lanceur qualité). Le test de 200 maisons n'a pas pour but de remplacer la scène complète.
+### Option LiDAR HD 50 cm (recommandée pour une version haut de gamme)
 
-## Pour améliorer le sol : option orthophoto (ne s'exécute pas automatiquement)
+L'IGN permet de télécharger des MNT/MNS par dalles de 1 km, pas de 50 cm, depuis sa carte. Exporter depuis l'interface IGN les listes de liens de dalles recouvrant le cercle 3 km, puis les enregistrer sous :
 
-Pour une vraie fidélité vue du ciel, procurer une **orthophoto officielle géoréférencée en GeoTIFF RGB** couvrant le bourg, puis vérifier précisément sa licence et ses obligations d'attribution. Cette image n'est pas fournie. Commencer par un rayon de **450 m**, qui évite de générer des dizaines de milliers de tuiles :
+- `data\lidar\mnt_urls.txt` : liste des URL HTTPS directes des GeoTIFF MNT
+- `data\lidar\mns_urls.txt` : liste des URL HTTPS directes des GeoTIFF MNS
 
-```powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements-ortho.txt
-.\.venv\Scripts\python.exe prepare_ortho.py "D:\IGN\orthophoto_saint_maurice.tif" --radius 450
-```
+Le lanceur téléchargera les deux séries, fabriquera les mosaïques et enrichira **uniquement** les hauteurs des bâtiments pour lesquels la mesure est fiable. En absence de données LiDAR, l'IGN BD TOPO reste utilisé. Les sources brutes sont conservées.
 
-Cela ajoute `PackageSources\CGL\aerial_images\*.png` et `PackageSources\CGL\saintmaurice_aerial.xml` au projet SDK. La compilation CGL et l'application en jeu sont **à valider** ; ne pas considérer la conversion en PNG comme preuve du rendu réel. Pour modifier ou étendre le rayon, calculer la taille disque et la durée de build à l'avance. Les images source et les tuiles produites ne doivent pas être redistribuées sans droit.
+Alternative : placer directement les rasters mosaïqués `data\lidar\mnt_0m50.tif` et `data\lidar\mns_0m50.tif`. Pour les nuages `.laz`, `laz_to_rasters.py` permet un raster MNT/roof par classes de points, après `pip install -r requirements-lidar.txt`.
 
-## Livrables de contrôle
+**On ne remplace pas automatiquement le relief de FS2024 par ces altitudes IGN69** : une conversion verticale et un test d'alignement géodésique sont nécessaires pour ne pas faire flotter ou enterrer routes et bâtiments.
 
-| Chemin | Utilité |
-|---|---|
-| `config.json` | Rayon, densité, marges de sécurité et positions des monuments |
-| `data/cartographie/zone_3km.geojson` | Cercle vérifiable dans QGIS |
-| `data/cartographie/monuments_a_preserver.geojson` | Marges de sécurité autour de l'église et de la Madone |
-| `data/ign_buildings.geojson` | Données IGN téléchargées sur ton PC, non incluses |
-| `output/inventory.csv` | Une ligne par bâtiment, hauteurs réelles/estimées, modèle associé |
-| `output/report.json` | Statistiques du vrai secteur une fois généré |
-| `output/validation_pre_sdk.json` | Vérification automatique de la protection des monuments |
-| `output/realearth-saint-maurice-hd.xml` | Projet SDK **source**, pas un dossier Community |
-| `output/PackageSources/...` | glTF, fichiers XML de placement et CGL éventuel |
+## Contenu du projet
 
-## Limites, risques et prochaines corrections pour une vraie version « j'y suis »
+- `generate.py` : WFS bâtiments -> géométries 3D et modèles PBR -> projet FS2024 ; **toutes** les emprises de rayon 3 km (`--limit 0`).
+- `sdk_polygons.py` : exclusions des constructions natives sans supprimer les LibraryObjects ; création des surfaces forestières.
+- `materials_hd.py` : textures de toits (tuiles, ardoise, métal) et murs (enduit, pierre) **procédurales**.
+- `landscape.py` : bois, routes, eau, hydro et polygones FS2024 de végétation depuis l'IGN.
+- `fetch_ortho_ign.py` : BD ORTHO WMS 20 cm -> 16-bit PNG/quadkeys CGL LOD20 complets ; téléchargement par blocs de 4x4 et reprise.
+- `prepare_ortho.py` : autre entrée si on possède déjà une orthophoto GeoTIFF locale.
+- `lidar_download.py`, `lidar_mosaic.py`, `lidar_roofs.py`, `laz_to_rasters.py` : chaîne LiDAR facultative.
+- `valider_sortie.py` : contrôle des protections monument, du SDK XML et des glTF.
+- `build_quality_report.py` : rapport exact des composants présents et des éléments non vérifiés.
+- `tests/` : tests automatiques sur données artificielles, **pas des images de Saint-Maurice**.
 
-1. **Pas de relief LiDAR livré** : les dénivelés sont ceux du FS2024 installé ; comparer le MNT du simulateur au RGE ALTI / LiDAR HD avant correction manuelle dans le Scenery Editor.
-2. **Pas d'orthophoto intégrée par défaut** : le convertisseur CGL attend un GeoTIFF réel (facultatif et à vérifier dans le jeu).
-3. **Façades et tuiles** : formes et couleurs procédurales, pas les photographies de chaque maison. Pour le rendu premium, ajouter des relevés des toits, matériaux PBR, fenêtres et accessoires selon les photographies autorisées.
-4. **Autogen** : `ExclusionRectangle excludeGenericBuildingObjects` ne suffit pas toujours à supprimer les bâtiments issus de la détection automatique. Vérifier dans le SDK les `Rectangle` / `Polygon` avec exclusion des bâtiments détectés.
-5. **Performances / LOD** : regroupement des hameaux disponible, mais pas encore de LOD multiples. Contrôler les FPS sur RTX 4070 en vol avec deux écrans.
-6. **Pas de démonstration dans le jeu** : la qualité visuelle finale n'est pas certifiée tant qu'un package compilé n'a pas été testé au-dessus du bourg.
+## Protections et sécurité
 
-## Sources officielles
+Les deux disques de protection dans `config.json` couvrent les anciens éléments de l'église et de la Madone/chapelle/bancs. Ils reposent sur les coordonnées précédemment utilisées ; **vérifier les emprises exactes des packages installés sur le PC avant le premier vol**. Les arbres et bâtiments nouveaux sont interdits dans ces zones et le code ne supprime aucun élément déjà installé.
 
-- IGN Géoplateforme WFS : https://data.geopf.fr/wfs/ows — BD TOPO v3 ; attribution IGN, Licence Ouverte 2.0 sous réserve des jeux de données effectivement utilisés.
-- SDK FS2024 — model libraries et scenery : https://docs.flightsimulator.com/msfs2024/retail/devmode/editors/scenery-editor/objects/scenery-objects/
-- SDK FS2024 — compilation : https://docs.flightsimulator.com/msfs2024/retail/sdk-tools/package-tool/package-tool/
-- SDK FS2024 — tuiles aériennes : https://docs.flightsimulator.com/msfs2024/flighting/devmode/editors/project-editor/file-formats/cgl-files/
-- SDK FS2024 — exclusions de bâtiments détectés : https://docs.flightsimulator.com/msfs2024/retail/devmode/editors/scenery-editor/objects/polygon-objects/
+Des ponts, murs, fenêtres, poteaux, fossés et détails de la circulation ne sont **pas** recréés automatiquement. Les chemins et cours d'eau sont audités avec l'IGN, mais laissés aux couches natives tant que leur correction n'a pas été validée.
 
-© Sources géographiques IGN et contributeurs OpenStreetMap selon les licences concernées. La position de l'église et la position de la Madone ont été retrouvées à partir des anciens projets de mod. **Ne jamais modifier ces modèles depuis ce générateur.**
+## Sources et documentation vérifiées
+
+- [FS2024 SDK, images aériennes CGL](https://docs.flightsimulator.com/msfs2024/flighting/devmode/editors/project-editor/file-formats/cgl-files/) — 256 × 256 px, 16-bit PNG, LOD20.
+- [FS2024 SDK, polygones d'exclusion/forçage de végétation](https://docs.flightsimulator.com/msfs2024/flighting/content-configuration/environment/scenery-objects/scenery-xml-properties/).
+- [IGN BD ORTHO, mise à jour 2026](https://cartes.gouv.fr/aide/fr/partenaires/ign/generalites-ign/actualites/2026-09-mises-a-jour/).
+- [IGN LiDAR HD MNT 50 cm](https://www.data.gouv.fr/datasets/mnt-lidar-hd), [MNS 50 cm](https://www.data.gouv.fr/datasets/mns-lidar-hd).
+- IGN BD TOPO WFS `https://data.geopf.fr/wfs/ows`, **Licence Ouverte 2.0 © IGN**.
+
+## Statut réel et limites
+
+- Tests locaux sur jeu synthétique : réalisés.
+- Vraies données IGN de Saint-Maurice : **non téléchargées par cet environnement** (accès Internet externe bloqué).
+- Build SDK / CGL / KTX2 : **non effectué ici**.
+- Test en vol à 200–500 m AGL : **non effectué**.
+- Effet « j'y suis » : **objectif visuel à vérifier**, pas une promesse de rendu déjà obtenu.

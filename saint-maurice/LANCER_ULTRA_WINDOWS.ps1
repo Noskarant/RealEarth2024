@@ -1,0 +1,78 @@
+# REAL EARTH SAINT-MAURICE 3 KM ULTRA — SDK source creator, non-destructive.
+# Usage: .\LANCER_ULTRA_WINDOWS.ps1 [-SansOrthophoto] [-SansPaysage] [-Compiler -SDKTool ...]
+param(
+    [switch]$SansOrthophoto,
+    [switch]$SansPaysage,
+    [switch]$Compiler,
+    [string]$SDKTool = ''
+)
+$ErrorActionPreference = 'Stop'
+Set-Location $PSScriptRoot
+
+function Run-Python([string[]]$ArgsList) {
+    & $Python @ArgsList
+    if ($LASTEXITCODE -ne 0) { throw "Erreur Python : $($ArgsList -join ' ')" }
+}
+if (-not (Get-Command py -ErrorAction SilentlyContinue)) {
+    throw 'Python est absent : installer Python 3.11 ou 3.12 (64 bits).'
+}
+if (-not (Test-Path '.venv')) { & py -3 -m venv .venv }
+$Python = Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
+Run-Python @('-m','pip','install','-r','requirements-ortho.txt')
+Run-Python @('-m','pytest','-q')
+Run-Python @('prepare_zone.py')
+
+# Download genuine IGN BD TOPO, never rebuild from synthetic fixture.
+if (-not (Test-Path 'data\ign_buildings.geojson')) {
+    Run-Python @('generate.py','fetch')
+} else {
+    Write-Host 'IGN batiments locaux : utilisation des donnees existantes.'
+}
+$Source = 'data\ign_buildings.geojson'
+
+# Optional IGN LiDAR HD 0.5 m MNT and MNS: exported lists from IGN tile portal.
+if ((Test-Path 'data\lidar\mnt_urls.txt') -and (Test-Path 'data\lidar\mns_urls.txt')) {
+    Run-Python @('lidar_download.py','data\lidar\mnt_urls.txt','--output','data\lidar\mnt')
+    Run-Python @('lidar_download.py','data\lidar\mns_urls.txt','--output','data\lidar\mns')
+    Run-Python @('lidar_mosaic.py','data\lidar\mnt','--output','data\lidar\mnt_0m50.tif')
+    Run-Python @('lidar_mosaic.py','data\lidar\mns','--output','data\lidar\mns_0m50.tif')
+}
+if ((Test-Path 'data\lidar\mnt_0m50.tif') -and (Test-Path 'data\lidar\mns_0m50.tif')) {
+    Run-Python @('lidar_roofs.py','--source',$Source,
+        '--mnt','data\lidar\mnt_0m50.tif','--mns','data\lidar\mns_0m50.tif',
+        '--output','data\ign_buildings_lidar.geojson')
+    $Source = 'data\ign_buildings_lidar.geojson'
+    Write-Host 'LiDAR HD : hauteur des maisons enrichie lorsque mesure fiable.'
+} else {
+    Write-Host 'LiDAR HD optionnel absent : volumes de maisons fondes sur IGN BD TOPO.'
+}
+
+# Import all valid buildings from the 3000m circle (no 200-building cap).
+Run-Python @('generate.py','build','--source',$Source,'--limit','0')
+if (-not $SansPaysage) {
+    Run-Python @('landscape.py','all')
+}
+if (-not $SansOrthophoto) {
+    Write-Host 'ORTHOPHOTO IGN 20 cm : cercle complet de 3000m en 16-bit PNG LOD20.'
+    Write-Host 'Le nombre de tuiles est important. Le telechargement est reprenable.'
+    Run-Python @('fetch_ortho_ign.py','--radius','3000','--max-tiles','60000')
+}
+Run-Python @('valider_sortie.py')
+Run-Python @('build_quality_report.py')
+Write-Host 'Sources SDK construites. Aucun ancien mod ni fichier du simulateur modifie.'
+
+$Project = Join-Path $PSScriptRoot 'output\realearth-saint-maurice-hd.xml'
+if ($Compiler) {
+    if (-not $SDKTool) {
+        $candidate = Join-Path $env:MSFS_SDK_ROOT 'Tools\bin\fspackagetool.exe'
+        if ($env:MSFS_SDK_ROOT -and (Test-Path $candidate)) { $SDKTool = $candidate }
+    }
+    if (-not $SDKTool -or -not (Test-Path $SDKTool)) {
+        throw 'Compilation : fournir -SDKTool chemin\vers\fspackagetool.exe (SDK FS2024).'
+    }
+    & $SDKTool $Project '-nopause'
+    if ($LASTEXITCODE -ne 0) { throw 'SDK compilation failed; do not install package.' }
+    Write-Host 'Compilation SDK demandee : verifier ensuite les logs, textures et rendu en vol.'
+} else {
+    Write-Host 'Ouvrir output\realearth-saint-maurice-hd.xml dans le Project Editor FS2024.'
+}

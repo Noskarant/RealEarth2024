@@ -1,0 +1,51 @@
+name: Saint-Maurice 3 km — IGN building and landscape source QA
+
+on:
+  push:
+    branches: [feature/saint-maurice-hd]
+    paths:
+      - 'saint-maurice/**'
+      - '.github/workflows/saint-maurice-ign.yml'
+  workflow_dispatch:
+
+jobs:
+  build-source-ign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: saint-maurice
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: saint-maurice/requirements.txt
+      - name: Install only lightweight building dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Run synthetic unit tests
+        # Full tests need Rasterio/OpenCV/Pillow; install the aerial extra test deps.
+        run: |
+          python -m pip install -r requirements-ortho.txt
+          python -m pip install scipy
+          python -m pytest -q
+      - name: Fetch real IGN buildings, create all 3km models
+        run: |
+          python prepare_zone.py
+          python generate.py all --limit 0
+      - name: IGN landscape and safe vegetation polygons
+        run: python landscape.py all
+      - name: Validate SDK source project
+        run: |
+          python valider_sortie.py
+          python build_quality_report.py
+      - name: Upload non-compiled SDK source and QA reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: saint-maurice-ign-3km-source
+          path: |
+            saint-maurice/output/**
+            !saint-maurice/output/PackageSources/CGL/**
+          if-no-files-found: error
+          retention-days: 7

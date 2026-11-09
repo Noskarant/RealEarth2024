@@ -61,7 +61,7 @@ def test_full_build_clusters_distant_houses_without_modifying_core(tmp_path):
     src=tmp_path/'PackageSources'/'Scenery'/'saintmaurice'
     xml=ET.parse(src/'scenery'/'saint_maurice_buildings.xml').getroot()
     assert len(xml.findall('SceneryObject'))==3
-    assert len(xml.findall('ExclusionRectangle'))==4
+    assert len(xml.findall('Polygon'))==4
     assert len(list((src/'modellib').glob('*.gltf')))==3
     for fp in (src/'modellib').glob('*.gltf'):
         sc=trimesh.load(fp,force='scene')
@@ -70,7 +70,9 @@ def test_full_build_clusters_distant_houses_without_modifying_core(tmp_path):
     for m in c['monuments_proteges']:
         mx,my=TO_L93.transform(m['lon'],m['lat'])
         protected=Point(mx,my).buffer(m['radius_m'])
-        for r in xml.findall('ExclusionRectangle'):
-            a,b=TO_L93.transform(float(r.get('longitudeMinimum')),float(r.get('latitudeMinimum')))
-            d,e=TO_L93.transform(float(r.get('longitudeMaximum')),float(r.get('latitudeMaximum')))
-            assert not box(a,b,d,e).intersects(protected)
+        for r in xml.findall('Polygon'):
+            from shapely.geometry import Polygon
+            coords=[TO_L93.transform(float(v.get('lon')),float(v.get('lat'))) for v in r.findall('Vertex')]
+            assert not Polygon(coords).intersects(protected)
+            assert r.find("Attribute[@name='ExcludeOSMBuildings']") is not None
+            assert r.find("Attribute[@name='ExcludeDetectedBuildings']") is not None

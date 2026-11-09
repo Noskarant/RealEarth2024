@@ -27,7 +27,7 @@ def test_scene_builds_sdk_xml_and_valid_gltf(tmp_path):
     xmlfile=tmp_path/'PackageSources'/'Scenery'/'saintmaurice'/'scenery'/'saint_maurice_buildings.xml'
     root=ET.parse(xmlfile).getroot()
     assert len(root.findall('SceneryObject'))==3
-    assert len(root.findall('ExclusionRectangle'))==3
+    assert len(root.findall('Polygon'))==3
     libs=tmp_path/'PackageSources'/'Scenery'/'saintmaurice'/'modellib'
     for file in libs.glob('*.gltf'):
         content=json.loads(file.read_text())
@@ -58,4 +58,4 @@ class FakeSession:
 def test_ign_fetch_paginates(tmp_path):
     fc=fetch_ign(load_config()['bbox_wgs84'],tmp_path/'buildings.geojson',page_size=2,session=FakeSession())
     assert len(fc['features'])==3
-    assert json.loads((tmp_path/'provenance.json').read_text())['features']==3
+    assert json.loads((tmp_path/'provenance_buildings.json').read_text())['features']==3

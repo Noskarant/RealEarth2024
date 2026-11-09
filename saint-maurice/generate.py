@@ -22,6 +22,8 @@ import requests
 from shapely.geometry import Point, Polygon, LineString, box, shape, mapping
 from shapely.ops import transform, split, triangulate
 import trimesh
+from sdk_polygons import exclude_autogen
+from materials_hd import texture, choose_kind, uv_from_vertices
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data"
@@ -37,14 +39,14 @@ def load_config() -> dict:
     return json.loads((ROOT / "config.json").read_text(encoding="utf-8"))
 
 
-def fetch_ign(bbox: list[float], out: Path, *, page_size: int = 500, session=None) -> dict:
+def fetch_ign(bbox: list[float], out: Path, *, page_size: int = 500, session=None, layer: str = LAYER) -> dict:
     """Télécharge toutes les pages WFS sans limiter arbitrairement le nombre d'immeubles."""
     if not (bbox[0] < bbox[2] and bbox[1] < bbox[3]):
         raise ValueError("BBOX attendue : lon_min,lat_min,lon_max,lat_max")
     client = session or requests.Session()
     params = {
         "SERVICE": "WFS", "VERSION": "2.0.0", "REQUEST": "GetFeature",
-        "TYPENAMES": LAYER, "SRSNAME": "EPSG:4326",
+        "TYPENAMES": layer, "SRSNAME": "EPSG:4326",
         "OUTPUTFORMAT": "application/json", "COUNT": page_size,
         "BBOX": ",".join(map(str, bbox)) + ",EPSG:4326",
     }
@@ -82,9 +84,9 @@ def fetch_ign(bbox: list[float], out: Path, *, page_size: int = 500, session=Non
     result = {"type": "FeatureCollection", "features": features}
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")
-    (out.parent / "provenance.json").write_text(json.dumps({
+    (out.parent / f"provenance_{out.stem}.json").write_text(json.dumps({
         "source": "IGN Géoplateforme, BD TOPO v3, WFS",
-        "url": WFS, "layer": LAYER, "bbox_wgs84": bbox,
+        "url": WFS, "layer": layer, "bbox_wgs84": bbox,
         "licence": "Licence Ouverte 2.0 - attribution IGN",
         "downloaded_utc": datetime.now(timezone.utc).isoformat(),
         "features": len(features),
@@ -148,9 +150,8 @@ def to_buildings(fc: dict, config: dict) -> list[dict]:
                 simpl = metric.simplify(config["simplify_tolerance_m"], preserve_topology=True)
                 if not isinstance(simpl, Polygon) or simpl.is_empty or len(simpl.exterior.coords) < 4:
                     continue
-                # Avoid walls overlapping inner courtyards in initial prototype:
-                # preserve exterior only; flag any footprint with interior holes.
-                simpl = Polygon(simpl.exterior.coords)
+                # Preserve inner courtyards: walls and roof triangulation account
+                # for holes instead of filling real openings with fake roofs.
                 centroid = simpl.centroid
                 lon, lat = TO_WGS.transform(centroid.x, centroid.y)
                 height = num(p.get("hauteur"))
@@ -192,15 +193,17 @@ def _faces_for_polygon(poly: Polygon, centroid, roof_eave: float, roof_rise: flo
     coords = list(poly.exterior.coords)[:-1]
     walls = []
     wall_faces = []
-    for i, (x1, y1) in enumerate(coords):
-        x2, y2 = coords[(i + 1) % len(coords)]
-        base = len(walls)
-        # Wall coordinates around centroid, +Y up; original XY = East/North.
-        walls.extend([(x1-centroid.x, -foundation_depth, -(y1-centroid.y)),
-                      (x2-centroid.x, -foundation_depth, -(y2-centroid.y)),
-                      (x2-centroid.x, roof_eave, -(y2-centroid.y)),
-                      (x1-centroid.x, roof_eave, -(y1-centroid.y))])
-        wall_faces.extend([(base,base+2,base+1),(base,base+3,base+2)])
+    for ring in [poly.exterior, *list(poly.interiors)]:
+        loop=list(ring.coords)[:-1]
+        for i, (x1, y1) in enumerate(loop):
+            x2, y2 = loop[(i + 1) % len(loop)]
+            base = len(walls)
+            # Interior rings have opposite winding, hence face into courtyard.
+            walls.extend([(x1-centroid.x, -foundation_depth, -(y1-centroid.y)),
+                          (x2-centroid.x, -foundation_depth, -(y2-centroid.y)),
+                          (x2-centroid.x, roof_eave, -(y2-centroid.y)),
+                          (x1-centroid.x, roof_eave, -(y1-centroid.y))])
+            wall_faces.extend([(base,base+2,base+1),(base,base+3,base+2)])
     # Roof ridge through the middle of the minimum rotated rectangle.
     rect = list(poly.minimum_rotated_rectangle.exterior.coords)[:4]
     edges = [(rect[(i+1)%4][0]-rect[i][0], rect[(i+1)%4][1]-rect[i][1]) for i in (0,1)]
@@ -234,10 +237,19 @@ def _faces_for_polygon(poly: Polygon, centroid, roof_eave: float, roof_rise: flo
             np.asarray(roof_verts, dtype=np.float32),np.asarray(roof_faces, dtype=np.int64))
 
 
-def _mesh(vertices, faces, rgba):
+def _mesh(vertices, faces, rgba, *, surface=None, material_hint="", textures_enabled=False):
     mesh = trimesh.Trimesh(vertices=vertices, faces=faces, process=False)
-    mesh.visual = trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial(
-        baseColorFactor=rgba, metallicFactor=0.0, roughnessFactor=0.86, doubleSided=True))
+    kwargs=dict(baseColorFactor=rgba, metallicFactor=0.0,
+                roughnessFactor=0.91 if surface=='roof' else 0.84,
+                doubleSided=True)
+    if textures_enabled and surface in ('roof','wall'):
+        kwargs['baseColorTexture']=texture(choose_kind(material_hint,surface))
+        mesh.visual=trimesh.visual.TextureVisuals(
+            uv=uv_from_vertices(np.asarray(vertices),surface),
+            material=trimesh.visual.material.PBRMaterial(**kwargs))
+    else:
+        mesh.visual=trimesh.visual.TextureVisuals(
+            material=trimesh.visual.material.PBRMaterial(**kwargs))
     return mesh
 
 
@@ -253,8 +265,11 @@ def export_model(b: dict, model_dir: Path, cfg: dict) -> dict:
     walls = [[214,200,178,255],[195,185,164,255],[223,215,194,255],[180,170,152,255]][seed%4]
     roofs = [[172,87,64,255],[184,99,69,255],[150,78,58,255]][seed%3]
     sc = trimesh.Scene()
-    sc.add_geometry(_mesh(v1,f1,walls),geom_name=name+"_walls")
-    sc.add_geometry(_mesh(v2,f2,roofs),geom_name=name+"_roof")
+    use_tex=bool(cfg.get('experimental_pbr_textures', True))
+    sc.add_geometry(_mesh(v1,f1,walls,surface='wall',material_hint=b['wall_material'],
+                          textures_enabled=use_tex),geom_name=name+"_walls")
+    sc.add_geometry(_mesh(v2,f2,roofs,surface='roof',material_hint=b['roof_material'],
+                          textures_enabled=use_tex),geom_name=name+"_roof")
     payloads = sc.export(file_type="gltf")
     gltf_key = next((key for key in payloads if key.endswith(".gltf")),None)
     if gltf_key is None:
@@ -369,7 +384,9 @@ def export_cluster(group: list[dict], model_dir: Path, cfg: dict) -> dict:
             offset += len(v)
         if not verts:continue
         colors = wall_colors[variant] if typ=="wall" else roof_colors[variant]
-        joined = _mesh(np.concatenate(verts),np.concatenate(faces),colors)
+        # Textured tile atlas; these are generic PBR materials, not photographs.
+        joined = _mesh(np.concatenate(verts),np.concatenate(faces),colors,
+                       surface=typ,textures_enabled=bool(cfg.get('experimental_pbr_textures',True)))
         total_tri += len(joined.faces)
         scene.add_geometry(joined,geom_name=f"{name}_{typ}_{variant}")
     _write_gltf_scene(name,scene,model_dir)
@@ -442,15 +459,10 @@ def build_scene(fc: dict, cfg: dict, out: Path, limit: int = 200) -> dict:
         placement_count+=1
         tri_count+=model["triangles"]
         for b in group:
-            # Rectangles are small and NEVER overlap protected landmark zones.
-            xmin,ymin,xmax,ymax=b["polygon"].bounds
-            pad=1.2
-            lonmin,latmin=TO_WGS.transform(xmin-pad,ymin-pad)
-            lonmax,latmax=TO_WGS.transform(xmax+pad,ymax+pad)
-            ET.SubElement(src,"ExclusionRectangle",{
-                "latitudeMinimum":f"{latmin:.9f}","latitudeMaximum":f"{latmax:.9f}",
-                "longitudeMinimum":f"{lonmin:.9f}","longitudeMaximum":f"{lonmax:.9f}",
-                "excludeAllObjects":"FALSE","excludeGenericBuildingObjects":"TRUE"})
+            # FS2024: these Polygon attributes exclude BOTH native detected
+            # and OSM buildings, unlike generic ExclusionRectangle alone.
+            # The bounding box is already verified outside landmark buffers.
+            exclude_autogen(src, b["polygon"], "Maison IGN " + b["id"])
             audit.append({
                 "id":b["id"],"source_id":b["source_id"],
                 "latitude":f'{b["lat"]:.8f}',"longitude":f'{b["lon"]:.8f}',
@@ -486,9 +498,9 @@ def build_scene(fc: dict, cfg: dict, out: Path, limit: int = 200) -> dict:
             "Nécessite compilation avec SDK MSFS2024 + validation en jeu",
             "Relief natif MSFS2024 conservé ; pas de LiDAR ni orthophoto embarqués",
             "Toitures simplifiées : géométrie estimée si mesures IGN manquantes",
-            "Façades et textures encore procédurales ; pas de photos de chaque maison",
-            "ExclusionRectangle générique insuffisant pour certains bâtiments auto-détectés : vérification en Scenery Editor requise",
-            "Les cours intérieures éventuelles sont simplifiées en volume plein",
+            "Textures PBR procédurales, pas de photographies de chaque maison ; compilation KTX2 à vérifier",
+            "Polygones SDK 2024 : OSM et bâtiments détectés exclus ; résultat à valider en Scenery Editor",
+            "Cours intérieures conservées dans le maillage lorsque la géométrie IGN les décrit",
             "La position GPS et altitude exactes des objets existants ne sont pas modifiées"
         ]}
     (out/"report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")

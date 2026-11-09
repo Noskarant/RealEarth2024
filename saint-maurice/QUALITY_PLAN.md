@@ -1,28 +1,16 @@
-# QUALITÉ — RealEarth Saint-Maurice, bourg + 3 km
+# Critères d'acceptation — Saint-Maurice-sur-Dargoire ULTRA 3 km
 
-## Ce qui est prêt dans les sources 0.2
+**Pas de statut « prêt en jeu » sans compilation SDK et test visuel.**
 
-- Rayon strict de 3 000 m (en Lambert-93), centre sur l'église, cartes GeoJSON de contrôle.
-- Génération complète depuis IGN BD TOPO, sans limite artificielle du nombre de bâtiments : `--limit 0`.
-- 900 premiers mètres : maison individuelle (forme, pente de toit, hauteur) ; 900–3 000 m : regroupement 75 m / altitude 1,5 m.
-- Église, Madone, chapelle et bancs existants protégés par des marges géographiques, sans déplacer ni modifier leur package.
-- Format source MSFS2024 glTF + ModelInfo et BGL scenery XML.
-- Conversion optionnelle de GeoTIFF vers CGL LOD20, **sans images incluses**.
-- Huit tests automatisés réussis sur données synthétiques, puis audit pré-SDK.
+1. Périmètre : 3000 m en Lambert-93 depuis `config.json`, couverture complète 28,27 km².
+2. Bâtiments : tous les emplacements IGN disponibles dans ce rayon, inventaire, provenance hauteur, cour intérieure, toitures.
+3. Orthophoto : nombre de tuiles et progression dans `orthophoto_IGN_report.json`, pas de carré manquant, transition alpha sans couture.
+4. Végétation : zones boisées seulement là où l'IGN les connaît, aucune collision avec les disques de l'église ou la Madone ; jardins et prairies conservés.
+5. Relief : étudier le MNT/MNS LiDAR 50 cm avant toute modification du terrain ; pas d'altitudes IGN69 copiées directement comme WGS84 ellipsoïde.
+6. SDK : compilation BGL/ModelLib/CGL sans erreur, textures KTX2 présentes et visibles, géométries correctement orientées.
+7. Vols de contrôle : bourg, Madone du Peu, hameaux à 1–3 km, vue oblique 200 et 500 m au-dessus du sol ; comparer avec le jeu natif.
+8. Performances : pas de chute de FPS disproportionnée sur RTX 4070, pas de bâtiments flottants, pas de superposition avec décor natif.
+9. Monuments : **aucun fichier original modifié**, bâtiments/arbres du nouveau mod absents des emplacements réservés, anciens modèles conservés.
+10. Dernière passe : corriger les formes de toiture les plus visibles et les points de repère après comparaison avec des photographies légalement exploitables.
 
-## Ce qui manque avant d'appeler le rendu « photoréaliste »
-
-- Téléchargement des données IGN réelles au poste Windows.
-- Compilations SDK (ModelLib, BGL, puis CGL si utilisé) et logs sans erreurs.
-- Validation visuelle des doubles bâtiments détectés, et corrections manuelles dans le Scenery Editor.
-- Phototextures de haute qualité effectivement intégrées, relief contrôlé à l'aide des données LiDAR, végétation locale et matériaux avancés.
-- Test de performances à différentes altitudes dans le simulateur, avec et sans mod.
-
-## Procédure QA
-
-1. Compiler bâtiments seuls ; tester au-dessus du clocher, de la Madone, des hameaux, des collines et de la vallée du Bozançon.
-2. Contrôler **église et Madone inchangées**, avec anciens packages activés.
-3. Corriger les doublons autogen via les outils d'exclusion adaptés, après observation réelle.
-4. Tester l'overlay orthophoto CGL sur 450 m de rayon avec une image IGN autorisée.
-5. Élargir les orthophotos après estimation du nombre de tuiles, du stockage et de la compatibilité.
-6. Ne promettre un rendu photoréaliste qu'après comparaison en vol avec des clichés de référence.
+La compilation dans le SDK ne garantit ni le rendu final, ni la présence de données LiDAR; l'intégration doit être inspectée en vol.
