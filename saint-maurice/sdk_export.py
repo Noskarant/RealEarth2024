@@ -17,7 +17,7 @@ PNG_SIG = b'\x89PNG\r\n\x1a\n'
 
 def emit_scene(scene, name: str, model_dir: Path, namespace: uuid.UUID) -> dict:
     model_dir.mkdir(parents=True, exist_ok=True)
-    parts = scene.export(file_type='gltf')
+    parts = scene.export(file_type='gltf', include_normals=True)
     gltf_key = next((x for x in parts if x.endswith('.gltf')), None)
     if gltf_key is None:
         raise ValueError('Trimesh did not produce a .gltf')
@@ -128,5 +128,13 @@ def validate_gltf_files(model_dir: Path) -> dict:
             assert path.is_file() and path.read_bytes().startswith(PNG_SIG)
             assert (model_dir / (uri + '.xml')).is_file(), f'{file.name}: missing texture sidecar'
             pngs.add(uri)
+        for mesh in doc.get('meshes', []):
+            for primitive in mesh.get('primitives', []):
+                attrs = primitive.get('attributes', {})
+                assert 'NORMAL' in attrs, f'{file.name}: missing NORMAL required by FS2024'
+                pos = doc['accessors'][attrs['POSITION']]
+                norm = doc['accessors'][attrs['NORMAL']]
+                assert norm['type'] == 'VEC3' and norm['componentType'] == 5126, file.name
+                assert norm['count'] == pos['count'], file.name
         checked += 1
     return {'gltf_checked':checked,'shared_png_textures':len(pngs)}
