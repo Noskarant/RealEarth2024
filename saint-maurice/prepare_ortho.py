@@ -66,7 +66,7 @@ def _register_cgl(out:Path,scene:str)->None:
     cgl_dir.mkdir(parents=True,exist_ok=True)
     builder=ET.Element('CGLBuilder')
     ET.SubElement(builder,'CGL',type='SecondaryAerialImage',input='Tiles',directory='aerial_images')
-    ET.ElementTree(builder).write(cgl_dir/'saintmaurice_aerial.xml',encoding='utf-8',xml_declaration=True)
+    ET.ElementTree(builder).write(cgl_dir/'CGLBuilderConfig.xml',encoding='utf-8',xml_declaration=True)
     pkgdef=out/'PackageDefinitions'/f'{scene}.xml'
     if not pkgdef.exists():
         raise FileNotFoundError(f'Projet bâtiments absent: {pkgdef} ; lancer generate.py all --limit 0 avant.')
