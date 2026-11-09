@@ -36,7 +36,7 @@ def add_polygon(root: ET.Element, geometry: Polygon, name: str, attributes: dict
     tag = ET.SubElement(root, "Polygon", displayName=name[:96])
     for key, val in attributes.items():
         gid, typ = ATTRIBUTES[key]
-        ET.SubElement(tag, "Attribute", name=key, GUID=gid, type=typ, value=str(val))
+        ET.SubElement(tag, "Attribute", name=key, guid=gid, type=typ, value=str(val))
     for east, north in ring:
         lon, lat = TO_LL.transform(east, north)
         ET.SubElement(tag, "Vertex", lat=f"{lat:.9f}", lon=f"{lon:.9f}")
