@@ -36,6 +36,9 @@ jobs:
           python generate.py all --limit 0
       - name: IGN landscape and safe vegetation polygons
         run: python landscape.py all
+      - name: Index official LiDAR HD 0.5m tiles (metadata only, optional)
+        continue-on-error: true
+        run: python lidar_autofetch.py discover
       - name: Mapped OSM stone walls, hedges and trees (optional)
         # Overpass may rate-limit API calls; IGN scenery remains usable.
         continue-on-error: true
@@ -51,5 +54,9 @@ jobs:
           path: |
             saint-maurice/output/**
             !saint-maurice/output/PackageSources/CGL/**
+            saint-maurice/data/lidar/index_lidar_hd.json
+            saint-maurice/data/lidar/mnt_urls.txt
+            saint-maurice/data/lidar/mns_urls.txt
+            saint-maurice/data/ign_buildings.geojson
           if-no-files-found: error
           retention-days: 7

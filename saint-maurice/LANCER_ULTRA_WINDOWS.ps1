@@ -4,6 +4,7 @@ param(
     [switch]$SansOrthophoto,
     [switch]$SansPaysage,
     [switch]$SansOSM,
+    [switch]$SansLidar,
     [switch]$OSMObligatoire,
     [switch]$Compiler,
     [string]$SDKTool = ''
@@ -32,14 +33,30 @@ if (-not (Test-Path 'data\ign_buildings.geojson')) {
 }
 $Source = 'data\ign_buildings.geojson'
 
-# Optional IGN LiDAR HD 0.5 m MNT and MNS: exported lists from IGN tile portal.
-if ((Test-Path 'data\lidar\mnt_urls.txt') -and (Test-Path 'data\lidar\mns_urls.txt')) {
-    Run-Python -ArgsList @('lidar_download.py','data\lidar\mnt_urls.txt','--output','data\lidar\mnt')
-    Run-Python -ArgsList @('lidar_download.py','data\lidar\mns_urls.txt','--output','data\lidar\mns')
-    Run-Python -ArgsList @('lidar_mosaic.py','data\lidar\mnt','--output','data\lidar\mnt_0m50.tif')
-    Run-Python -ArgsList @('lidar_mosaic.py','data\lidar\mns','--output','data\lidar\mns_0m50.tif')
+# Maximum quality: automatically find real IGN 0.5m MNT/MNS tiles via public WFS.
+# Downloads and mosaics are resumable. Existing user-supplied URLs remain valid.
+if (-not $SansLidar -and -not ((Test-Path 'data\lidar\mnt_0m50.tif') -and (Test-Path 'data\lidar\mns_0m50.tif'))) {
+    try {
+        if (-not (Test-Path 'data\lidar\mnt_urls.txt') -or -not (Test-Path 'data\lidar\mns_urls.txt')) {
+            Run-Python -ArgsList @('lidar_autofetch.py','discover')
+        }
+    } catch {
+        Write-Warning "Index IGN LiDAR HD indisponible, toitures IGN conservees : $($_.Exception.Message)"
+    }
 }
-if ((Test-Path 'data\lidar\mnt_0m50.tif') -and (Test-Path 'data\lidar\mns_0m50.tif')) {
+# Optional IGN LiDAR HD 0.5 m MNT and MNS: automatically discovered or provided by user.
+if (-not $SansLidar -and (Test-Path 'data\lidar\mnt_urls.txt') -and (Test-Path 'data\lidar\mns_urls.txt') -and
+    ((Get-Item 'data\lidar\mnt_urls.txt').Length -gt 0) -and ((Get-Item 'data\lidar\mns_urls.txt').Length -gt 0)) {
+    try {
+        Run-Python -ArgsList @('lidar_download.py','data\lidar\mnt_urls.txt','--output','data\lidar\mnt')
+        Run-Python -ArgsList @('lidar_download.py','data\lidar\mns_urls.txt','--output','data\lidar\mns')
+        Run-Python -ArgsList @('lidar_mosaic.py','data\lidar\mnt','--output','data\lidar\mnt_0m50.tif')
+        Run-Python -ArgsList @('lidar_mosaic.py','data\lidar\mns','--output','data\lidar\mns_0m50.tif')
+    } catch {
+        Write-Warning "Lidar telechargement/mosaique incomplet : $($_.Exception.Message). Reprendre en relancant le script."
+    }
+}
+if (-not $SansLidar -and (Test-Path 'data\lidar\mnt_0m50.tif') -and (Test-Path 'data\lidar\mns_0m50.tif')) {
     Run-Python -ArgsList @('lidar_roofs.py','--source',$Source,
         '--mnt','data\lidar\mnt_0m50.tif','--mns','data\lidar\mns_0m50.tif',
         '--output','data\ign_buildings_lidar.geojson')

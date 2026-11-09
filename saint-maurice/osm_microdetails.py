@@ -44,12 +44,29 @@ def query_osm(center: tuple[float,float], radius: int, session=None, endpoint=OV
       node["historic"~"^(wayside_cross|memorial|monument)$"](around:{r},{lat},{lon});
     );out geom;'''
     client=session or requests.Session()
-    response=client.post(endpoint,data={'data':query},timeout=210)
-    response.raise_for_status()
-    parsed=response.json()
-    if not isinstance(parsed.get('elements'),list):
-        raise RuntimeError('Malformed Overpass response')
-    return parsed
+    # Public Overpass instances may reject POST (HTTP 406) or rate limit.
+    # Try GET on the same instance first; only then use a second community
+    # endpoint. Never request more than one full result successfully.
+    endpoints=[endpoint]
+    if session is None and endpoint==OVERPASS:
+        endpoints.extend(['https://overpass.kumi.systems/api/interpreter',
+                          'https://overpass.nchc.org.tw/api/interpreter'])
+    errors=[]
+    for url in endpoints:
+        for method in ('post','get'):
+            try:
+                args={'data':{'data':query}} if method=='post' else {'params':{'data':query}}
+                response=getattr(client,method)(url,timeout=75,**args)
+                response.raise_for_status()
+                parsed=response.json()
+                if not isinstance(parsed,dict) or not isinstance(parsed.get('elements'),list):
+                    raise ValueError('Malformed Overpass response')
+                parsed.setdefault('provenance',{'endpoint':url,'method':method})
+                return parsed
+            except (requests.RequestException, ValueError) as exc:
+                errors.append(f'{url} ({method}): {exc}')
+    raise RuntimeError('No available Overpass endpoint: '+'; '.join(errors[-4:]))
+
 
 
 def _subdivide(line:LineString, spacing=7.0):

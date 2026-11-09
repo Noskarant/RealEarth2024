@@ -63,9 +63,17 @@ Pour compiler automatiquement **uniquement si le SDK local est accessible** :
 - `osm_tree_model_guid`, `osm_tree_species_name` : laisser vides tant que les modèles d’arbre FS2024 valides n’ont pas été repérés dans Scenery Editor ;
 - `monuments_proteges` : secteurs bloqués autour des objets existants. Ne pas réduire leur marge sans vérification.
 
-### Chaîne LiDAR HD (si rasters disponibles)
+### LiDAR HD automatique (sans sélection manuelle de tuiles)
 
-Placer les données dans `data\lidar\mnt_0m50.tif` et `data\lidar\mns_0m50.tif` ou fournir les fichiers texte de liens comme dans les instructions V0.3 ; le lanceur crée un nouveau GeoJSON enrichi, **sans modifier les fichiers IGN d’origine**. La précision des toitures doit être contrôlée contre des photographies ; les données MNS peuvent inclure de la végétation.
+Le lanceur détecte maintenant **automatiquement les dalles MNT/MNS LiDAR HD officielles** (WFS IGN) qui intersectent le disque de 3 km, puis télécharge les GeoTIFF disponibles, les regroupe et estime les altitudes de sol / toiture **sans modifier les données originales**. Le service IGN n'a pas encore été vérifié sur ce poste ; les éventuelles cellules non couvertes sont explicitement signalées et les valeurs BD TOPO sont conservées. L'ensemble MNT + MNS à 50 cm peut nécessiter **plusieurs gigaoctets** sur disque. En cas d'interruption réseau, relancer le script reprend les fichiers déjà complets.
+
+- `python lidar_autofetch.py discover` : obtenir les URL des dalles LiDAR officielles et le rapport de couverture **sans télécharger les GeoTIFF**.
+- `python lidar_autofetch.py download` : télécharger les dalles indexées, avec reprise après interruption.
+- `-SansLidar` au lanceur Windows : désactiver cette étape très lourde si nécessaire.
+
+Le terrain FS2024 n'est **pas** automatiquement remplacé par le MNT ; le LiDAR sert ici aux volumes des bâtiments. Il faudra vérifier un workflow terrain SDK officiellement pris en charge avant de modifier la géométrie du sol.
+
+Pour utiliser des données déjà téléchargées, placer les données dans `data\lidar\mnt_0m50.tif` et `data\lidar\mns_0m50.tif` ou fournir les fichiers texte de liens comme dans les instructions V0.3 ; le lanceur crée un nouveau GeoJSON enrichi, **sans modifier les fichiers IGN d’origine**. La précision des toitures doit être contrôlée contre des photographies ; les données MNS peuvent inclure de la végétation.
 
 ### Exigences de qualité / vérification
 
@@ -86,5 +94,7 @@ Placer les données dans `data\lidar\mnt_0m50.tif` et `data\lidar\mns_0m50.tif` 
 - IGN WFS : https://data.geopf.fr/wfs/ows — © IGN Licence Ouverte 2.0
 - IGN WMS : https://data.geopf.fr/wms-r/wms — © IGN, licences de la couche à vérifier
 - OpenStreetMap / Overpass : © OpenStreetMap contributors, ODbL.
+
+**Génération IGN réelle vérifiée sur GitHub Actions (9 novembre 2026) :** 2 855 bâtiments dans les 3 km, 1 897 objets placés, 320 polygones boisés IGN. Il s'agit toujours de **sources SDK non compilées** ; l'orthophoto n'a pas encore été téléchargée sur GitHub, et aucun vol n'a été contrôlé.
 
 **Test en simulateur / SDK sur cette machine : non réalisé.** L’archive est du code et des sources de projet, pas un package `.cgl`/`.bgl` déjà opérationnel.
