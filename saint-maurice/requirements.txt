@@ -1,0 +1,6 @@
+requests>=2.31,<3
+shapely>=2.0,<3
+pyproj>=3.5,<4
+trimesh>=4.0,<5
+numpy>=1.26,<3
+pytest>=8,<10

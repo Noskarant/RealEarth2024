@@ -1,0 +1,44 @@
+{
+  "scene": "realearth-saint-maurice-hd",
+  "description": "Saint-Maurice-sur-Dargoire (bourg et collines dans un rayon exact de 3 km)",
+  "centre_wgs84": [
+    4.6312222,
+    45.5829444
+  ],
+  "radius_m": 3000,
+  "bbox_wgs84": [
+    4.5906754,
+    45.555605,
+    4.671809,
+    45.6102693
+  ],
+  "core_radius_m": 900,
+  "cluster_cell_m": 75,
+  "cluster_alt_band_m": 1.5,
+  "max_buildings_prototype": 200,
+  "foundation_depth_m": 3.0,
+  "simplify_tolerance_m": 0.12,
+  "minimum_footprint_m2": 6.0,
+  "monuments_proteges": [
+    {
+      "name": "Eglise Saint-Maurice (modele existant)",
+      "lon": 4.6312222,
+      "lat": 45.5829444,
+      "radius_m": 45.0,
+      "source": "position du paquet FS2024 existant"
+    },
+    {
+      "name": "Madone du Peu, chapelle et bancs (modeles existants)",
+      "lon": 4.626721,
+      "lat": 45.583269,
+      "radius_m": 65.0,
+      "source": "position du paquet FS2024 existant"
+    }
+  ],
+  "do_not_edit_existing_packages": [
+    "realearth-saint-maurice-eglise",
+    "realearth-saint-maurice-vierge",
+    "realearth-saint-maurice-bancs",
+    "realearth-valmorel-hd"
+  ]
+}
