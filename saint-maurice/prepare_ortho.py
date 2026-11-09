@@ -79,7 +79,7 @@ def _register_cgl(out:Path,scene:str)->None:
         flags=ET.SubElement(group,'Flags')
         ET.SubElement(flags,'FSXCompatibility').text='false'
         ET.SubElement(group,'AssetDir').text='PackageSources\\CGL\\'
-        ET.SubElement(group,'OutputDir').text='Scenery\\saintmaurice\\aerial\\'
+        ET.SubElement(group,'OutputDir').text='CGL\\'
         tree.write(pkgdef,encoding='utf-8',xml_declaration=True)
 
 
