@@ -8,6 +8,7 @@ import xml.etree.ElementTree as ET
 
 from shapely.geometry import box, Point, Polygon
 from pyproj import Transformer
+from sdk_export import validate_gltf_files
 
 ROOT=Path(__file__).resolve().parent
 TO_L93=Transformer.from_crs('EPSG:4326','EPSG:2154',always_xy=True)
@@ -28,7 +29,11 @@ def validate(out:Path)->dict:
         protected.append((x['name'],Point(mx,my).buffer(x['radius_m'])))
     assert len(rows)>0,'Inventaire vide'
     assert len(excl)==len(rows),'Exclusions incohérentes'
-    assert len(objs)==len(list(models.glob('*.gltf'))),'Objets et modèles incohérents'
+    # Other models (OSM walls/hedges) may share the ModelLib and have their own BGL.
+    available_models={file.stem for file in models.glob('*.gltf')}
+    building_models={r['model'] for r in rows}
+    assert len(objs)==len(building_models),'Objets bâtiments / modèles incohérents'
+    assert building_models.issubset(available_models),'Modèles bâtiments manquants'
     cx,cy=TO_L93.transform(*config['centre_wgs84'])
     for row in rows:
         x,y=TO_L93.transform(float(row['longitude']),float(row['latitude']))
@@ -50,8 +55,12 @@ def validate(out:Path)->dict:
         assert poly.is_valid and poly.area>0, 'Polygone auto-génération invalide'
         for name,area in protected:
             assert not poly.intersects(area),f'Exclusion entre en conflit avec {name}'
+    sdk_models=validate_gltf_files(models)
+    extra_xml=root/'scenery'/'saint_maurice_osm_details.xml'
+    osm_placements=len(ET.parse(extra_xml).getroot().findall('SceneryObject')) if extra_xml.exists() else 0
     summary={'ok':True,'maisons':len(rows),'objets':len(objs),'exclusions':len(excl),
-             'monuments_proteges':len(protected),'compilation_sdk':'non vérifiée'}
+             'monuments_proteges':len(protected),'osm_microdetail_placements':osm_placements,
+             'gltf_external_textures_checked':sdk_models, 'compilation_sdk':'non vérifiée'}
     (out/'validation_pre_sdk.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2),encoding='utf-8')
     return summary
 

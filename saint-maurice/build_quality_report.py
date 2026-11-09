@@ -16,6 +16,7 @@ def inspect(out=OUTPUT):
     lidar=(DATA/'lidar_roofs_report.json')
     lidar_report=json.loads(lidar.read_text(encoding='utf-8')) if lidar.exists() else None
     valid=read('validation_pre_sdk.json')
+    osm=read('osm_microdetails_report.json')
     expected=40633 # analytical count at SDK zoom20 for the configured 3km centre
     coverage=round(100*(aerial.get('tiles_created',0)+aerial.get('tiles_reused',0))/
                    max(1,aerial.get('tiles_planned',expected)),2) if aerial else 0
@@ -27,6 +28,7 @@ def inspect(out=OUTPUT):
         'orthophoto':aerial,
         'orthophoto_tile_progress_percent':coverage,
         'lidar_roof_heights':lidar_report,
+        'microdetails_osm':osm,
         'pre_sdk_validation':valid,
         'church_and_madone_assets_modified':False,
         'sdk_compiled':False,
@@ -37,6 +39,9 @@ def inspect(out=OUTPUT):
             'Procedural roof/wall textures: NOT photo reconstructions of actual facades',
             '3D SDK compatibility, terrain seams and runtime FPS require in-game confirmation',
             'Existing church, Madone, chapel and benches packages never changed',
+            'OSM detailed walls and hedges are source-linked but their physical height/shape are estimated',
+            'Doors and windows are procedural estimates and must be manually checked against photographs',
+            'SDK model texture PNGs are external and shared, validated structurally',
         ]
     }
     (out/'quality_report.json').write_text(json.dumps(status,indent=2,ensure_ascii=False),encoding='utf-8')

@@ -32,7 +32,7 @@ def test_scene_builds_sdk_xml_and_valid_gltf(tmp_path):
     for file in libs.glob('*.gltf'):
         content=json.loads(file.read_text())
         assert content['asset']['version']=='2.0'
-        assert len(content['meshes'])==2
+        assert len(content['meshes'])>=2
         model_xml=file.with_suffix('.xml')
         assert ET.parse(model_xml).getroot().attrib['guid'].startswith('{')
     assert len(list(libs.glob('*.gltf')))==3

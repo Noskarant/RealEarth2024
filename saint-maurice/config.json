@@ -1,6 +1,6 @@
 {
   "scene": "realearth-saint-maurice-hd",
-  "description": "Saint-Maurice-sur-Dargoire (bourg et collines dans un rayon exact de 3 km)",
+  "description": "Saint-Maurice-sur-Dargoire MAX 3 km — bâtiments, façades procédurales, ortho, végétation, OSM, LiDAR facultatif",
   "centre_wgs84": [
     4.6312222,
     45.5829444
@@ -41,5 +41,9 @@
     "realearth-saint-maurice-vierge",
     "realearth-saint-maurice-bancs",
     "realearth-valmorel-hd"
-  ]
+  ],
+  "procedural_facades": true,
+  "facades_radius_m": 1100,
+  "osm_tree_model_guid": "",
+  "osm_tree_species_name": ""
 }

@@ -24,6 +24,8 @@ from shapely.ops import transform, split, triangulate
 import trimesh
 from sdk_polygons import exclude_autogen
 from materials_hd import texture, choose_kind, uv_from_vertices
+from sdk_export import emit_scene
+from facades_hd import facades_for_building
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data"
@@ -46,9 +48,9 @@ def fetch_ign(bbox: list[float], out: Path, *, page_size: int = 500, session=Non
     client = session or requests.Session()
     params = {
         "SERVICE": "WFS", "VERSION": "2.0.0", "REQUEST": "GetFeature",
-        "TYPENAMES": layer, "SRSNAME": "EPSG:4326",
+        "TYPENAMES": layer, "SRSNAME": "CRS:84",
         "OUTPUTFORMAT": "application/json", "COUNT": page_size,
-        "BBOX": ",".join(map(str, bbox)) + ",EPSG:4326",
+        "BBOX": ",".join(map(str, bbox)) + ",CRS:84",
     }
     seen: set[str] = set()
     features = []
@@ -179,6 +181,8 @@ def to_buildings(fc: dict, config: dict) -> list[dict]:
                     "distance_core_m": round(math.hypot(centroid.x-core_x, centroid.y-core_y), 1),
                     "polygon": simpl, "had_holes": len(metric.interiors) > 0,
                     "nature": str(p.get("nature") or ""),
+                    "usage": str(p.get("usage_1") or ""),
+                    "floors": p.get("nombre_d_etages"),
                     "roof_material": str(p.get("materiaux_de_la_toiture") or ""),
                     "wall_material": str(p.get("materiaux_des_murs") or ""),
                 })
@@ -244,6 +248,7 @@ def _mesh(vertices, faces, rgba, *, surface=None, material_hint="", textures_ena
                 doubleSided=True)
     if textures_enabled and surface in ('roof','wall'):
         kwargs['baseColorTexture']=texture(choose_kind(material_hint,surface))
+        kwargs['baseColorFactor']=[1.0,1.0,1.0,1.0]
         mesh.visual=trimesh.visual.TextureVisuals(
             uv=uv_from_vertices(np.asarray(vertices),surface),
             material=trimesh.visual.material.PBRMaterial(**kwargs))
@@ -270,28 +275,20 @@ def export_model(b: dict, model_dir: Path, cfg: dict) -> dict:
                           textures_enabled=use_tex),geom_name=name+"_walls")
     sc.add_geometry(_mesh(v2,f2,roofs,surface='roof',material_hint=b['roof_material'],
                           textures_enabled=use_tex),geom_name=name+"_roof")
-    payloads = sc.export(file_type="gltf")
-    gltf_key = next((key for key in payloads if key.endswith(".gltf")),None)
-    if gltf_key is None:
-        raise ValueError("Export trimesh inattendu : aucun glTF")
-    gltf_doc = json.loads(payloads[gltf_key].decode("utf-8") if isinstance(payloads[gltf_key],bytes) else payloads[gltf_key])
-    for buffer in gltf_doc.get("buffers",[]):
-        old_uri = buffer.get("uri")
-        if not old_uri or old_uri not in payloads:
-            raise ValueError("Buffer glTF absent : " + str(old_uri))
-        new_uri = f"{name}_{old_uri}"
-        data = payloads[old_uri]
-        (model_dir/new_uri).write_bytes(data if isinstance(data,bytes) else data.encode("utf-8"))
-        buffer["uri"] = new_uri
-    target = model_dir / f"{name}.gltf"
-    target.write_text(json.dumps(gltf_doc,ensure_ascii=False),encoding="utf-8")
-    # Model XML must point at a real glTF. No textures are required.
-    guid = "{" + str(uuid.uuid5(NAMESPACE, "model:"+name)).upper() + "}"
-    modelinfo = ET.Element("ModelInfo",guid=guid, version="1.1")
-    lods = ET.SubElement(modelinfo,"LODS")
-    ET.SubElement(lods,"LOD",minSize="0",ModelFile=target.name)
-    ET.ElementTree(modelinfo).write(model_dir / f"{name}.xml", encoding="utf-8",xml_declaration=True)
-    return {"name": name,"guid": guid,"path": str(target),"triangles": len(f1)+len(f2)}
+    # Real footprint, but openings are explicitly estimates: generated only for
+    # non-industrial/non-agricultural houses near the village center.
+    distance = b.get('distance_core_m', float('inf'))
+    forbidden = any(k in b.get('usage','').lower() for k in ('agricol','industriel'))
+    if cfg.get('procedural_facades', False) and distance <= cfg.get('facades_radius_m', 1050) and not forbidden:
+        floors = num(b.get('floors'))
+        details = facades_for_building(b['polygon'],b['height_m'],rise,
+                                      floors=int(floors) if floors is not None else None)
+        colors = {'glass':(76,91,99,255),'trim':(210,202,183,255),'door':(91,67,49,255)}
+        for material,(verts,faces) in details.items():
+            sc.add_geometry(_mesh(verts,faces,colors[material]), geom_name=f'{name}_facade_{material}')
+    metadata = emit_scene(sc,name,model_dir,NAMESPACE)
+    return {"name": name,"guid": metadata["guid"],"path": metadata["path"],
+            "triangles": sum(len(g.faces) for g in sc.geometry.values())}
 
 
 def write_sdk_project(out: Path, config: dict) -> None:
@@ -396,24 +393,8 @@ def export_cluster(group: list[dict], model_dir: Path, cfg: dict) -> dict:
 
 
 def _write_gltf_scene(name, scene: trimesh.Scene, model_dir: Path) -> None:
-    """Write one self-contained ModelLib asset from Trimesh's GLTF export."""
-    payloads=scene.export(file_type="gltf")
-    key=next((k for k in payloads if k.endswith(".gltf")),None)
-    if key is None:raise ValueError("Export glTF manquant")
-    document=json.loads(payloads[key].decode("utf-8") if isinstance(payloads[key],bytes) else payloads[key])
-    for buf in document.get("buffers",[]):
-        old=buf.get("uri")
-        if not old or old not in payloads:raise ValueError("Buffer glTF manquant: "+str(old))
-        new=f"{name}_{old}"
-        raw=payloads[old]
-        (model_dir/new).write_bytes(raw if isinstance(raw,bytes) else raw.encode("utf-8"))
-        buf["uri"]=new
-    (model_dir/f"{name}.gltf").write_text(json.dumps(document,ensure_ascii=False),encoding="utf-8")
-    guid="{"+str(uuid.uuid5(NAMESPACE,"model:"+name)).upper()+"}"
-    modelinfo=ET.Element("ModelInfo",guid=guid,version="1.1")
-    lods=ET.SubElement(modelinfo,"LODS")
-    ET.SubElement(lods,"LOD",minSize="0",ModelFile=f"{name}.gltf")
-    ET.ElementTree(modelinfo).write(model_dir/f"{name}.xml",encoding="utf-8",xml_declaration=True)
+    """Store external PNGs, shared across every building, with SDK sidecars."""
+    emit_scene(scene,name,model_dir,NAMESPACE)
 
 
 def build_scene(fc: dict, cfg: dict, out: Path, limit: int = 200) -> dict:
@@ -453,7 +434,7 @@ def build_scene(fc: dict, cfg: dict, out: Path, limit: int = 200) -> dict:
         obj=ET.SubElement(src,"SceneryObject",{
             "instanceId":gid,"lat":f'{model["lat"]:.9f}',"lon":f'{model["lon"]:.9f}',
             "alt":"0.0","pitch":"0.0","bank":"0.0","heading":"0.0",
-            "imageComplexity":"NORMAL","altitudeIsAgl":"TRUE",
+            "imageComplexity":"VERY_SPARSE","altitudeIsAgl":"TRUE",
             "snapToGround":"TRUE","snapToNormal":"FALSE"})
         ET.SubElement(obj,"LibraryObject",name=model["guid"],scale="1.0")
         placement_count+=1
@@ -470,6 +451,8 @@ def build_scene(fc: dict, cfg: dict, out: Path, limit: int = 200) -> dict:
                 "area_m2":b["area_m2"],"height_m":b["height_m"],
                 "height_source":b["height_source"],"ground_m":b["ground_m"],
                 "roof_rise_m":b["roof_rise_m"],"roof_source":b["roof_source"],
+                "facades_estimees":bool(cfg.get('procedural_facades',False) and b['distance_core_m'] <= cfg.get('facades_radius_m',1050)
+                                      and not any(k in b.get('usage','').lower() for k in ('agricol','industriel'))),
                 "has_inner_courtyard":b["had_holes"],"model":model["name"],
                 "placement_kind":model.get("kind","individual"),
             })
@@ -489,6 +472,7 @@ def build_scene(fc: dict, cfg: dict, out: Path, limit: int = 200) -> dict:
         "heights_ign":sum(x["height_source"]=="IGN" for x in audit),
         "heights_estimated":sum(x["height_source"]=="estimée" for x in audit),
         "roofs_ign":sum(x["roof_source"]=="IGN" for x in audit),
+        "facades_procedurales":sum(bool(x["facades_estimees"]) for x in audit),
         "triangles":tri_count,
         "with_inner_courtyards_simplified":sum(bool(x["has_inner_courtyard"]) for x in audit),
         "models":len(groups),"placements":placement_count,

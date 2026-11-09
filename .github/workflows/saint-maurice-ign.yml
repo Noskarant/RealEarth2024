@@ -1,4 +1,4 @@
-name: Saint-Maurice 3 km — IGN building and landscape source QA
+name: Saint-Maurice 3 km MAX — IGN and OSM source QA
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
 jobs:
   build-source-ign:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     defaults:
       run:
         working-directory: saint-maurice
@@ -36,6 +36,10 @@ jobs:
           python generate.py all --limit 0
       - name: IGN landscape and safe vegetation polygons
         run: python landscape.py all
+      - name: Mapped OSM stone walls, hedges and trees (optional)
+        # Overpass may rate-limit API calls; IGN scenery remains usable.
+        continue-on-error: true
+        run: python osm_microdetails.py all
       - name: Validate SDK source project
         run: |
           python valider_sortie.py
@@ -43,7 +47,7 @@ jobs:
       - name: Upload non-compiled SDK source and QA reports
         uses: actions/upload-artifact@v4
         with:
-          name: saint-maurice-ign-3km-source
+          name: saint-maurice-3km-max-source
           path: |
             saint-maurice/output/**
             !saint-maurice/output/PackageSources/CGL/**

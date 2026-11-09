@@ -3,6 +3,8 @@
 param(
     [switch]$SansOrthophoto,
     [switch]$SansPaysage,
+    [switch]$SansOSM,
+    [switch]$OSMObligatoire,
     [switch]$Compiler,
     [string]$SDKTool = ''
 )
@@ -51,6 +53,22 @@ if ((Test-Path 'data\lidar\mnt_0m50.tif') -and (Test-Path 'data\lidar\mns_0m50.t
 Run-Python @('generate.py','build','--source',$Source,'--limit','0')
 if (-not $SansPaysage) {
     Run-Python @('landscape.py','all')
+}
+# OSM details: only real mapped hedges/walls; if Overpass is rate-limited,
+# keep the successful IGN build and write the error to an explicit local log.
+if (-not $SansOSM) {
+    try {
+        if (Test-Path 'data\osm_microdetails.json') {
+            Run-Python @('osm_microdetails.py','build')
+        } else {
+            Run-Python @('osm_microdetails.py','all')
+        }
+    } catch {
+        $msg = "OSM non disponible : $($_.Exception.Message)"
+        Write-Warning $msg
+        $msg | Out-File -Encoding utf8 'osm_erreur.txt'
+        if ($OSMObligatoire) { throw }
+    }
 }
 if (-not $SansOrthophoto) {
     Write-Host 'ORTHOPHOTO IGN 20 cm : cercle complet de 3000m en 16-bit PNG LOD20.'
