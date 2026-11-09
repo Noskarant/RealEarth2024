@@ -74,9 +74,10 @@ def emit_scene(scene, name: str, model_dir: Path, namespace: uuid.UUID) -> dict:
     # Remove the image-only buffers. Rebuild referenced bufferView indices.
     view_map = {old: new for new, old in enumerate(sorted(used_view))}
     view_list = [dict(old_views[x]) for x in sorted(used_view)]
+    # One BIN per glTF: avoids dozens of independent SDK ModelLib file dependencies.
     used_buffers = sorted({v['buffer'] for v in view_list})
-    buffer_map = {old: new for new, old in enumerate(used_buffers)}
-    new_buffers = []
+    offsets = {}
+    payload = bytearray()
     for old_idx in used_buffers:
         original = old_buffers[old_idx]
         uri = original['uri']
@@ -85,11 +86,18 @@ def emit_scene(scene, name: str, model_dir: Path, namespace: uuid.UUID) -> dict:
         raw_bin = parts[uri]
         if not isinstance(raw_bin, bytes):
             raw_bin = raw_bin.encode('utf-8')
-        new_uri = f'{name}_geom_{len(new_buffers)}.bin'
-        (model_dir / new_uri).write_bytes(raw_bin)
-        new_buffers.append({'uri': new_uri, 'byteLength': len(raw_bin)})
+        padding = (-len(payload)) % 4
+        if padding:
+            payload.extend(b'\0' * padding)
+        offsets[old_idx] = len(payload)
+        payload.extend(raw_bin[:original['byteLength']])
     for v in view_list:
-        v['buffer'] = buffer_map[v['buffer']]
+        original_buffer = v['buffer']
+        v['byteOffset'] = int(v.get('byteOffset', 0)) + offsets[original_buffer]
+        v['buffer'] = 0
+    bin_name = f'{name}.bin'
+    (model_dir / bin_name).write_bytes(payload)
+    new_buffers = [{'uri': bin_name, 'byteLength': len(payload)}]
     for a in doc.get('accessors', []):
         if 'bufferView' in a:
             a['bufferView'] = view_map[a['bufferView']]
@@ -136,5 +144,13 @@ def validate_gltf_files(model_dir: Path) -> dict:
                 norm = doc['accessors'][attrs['NORMAL']]
                 assert norm['type'] == 'VEC3' and norm['componentType'] == 5126, file.name
                 assert norm['count'] == pos['count'], file.name
+        assert len(doc.get('buffers', [])) == 1 and doc['buffers'][0]['uri'] == file.stem + '.bin', f'{file.name}: expected one BIN'
+        for mesh in doc.get('meshes', []):
+            for prim in mesh.get('primitives', []):
+                attrs = prim.get('attributes', {})
+                assert 'NORMAL' in attrs, f'{file.name}: missing normals'
+                a = doc['accessors'][attrs['POSITION']]
+                n = doc['accessors'][attrs['NORMAL']]
+                assert n['type'] == 'VEC3' and n['componentType'] == 5126 and n['count'] == a['count'], file.name
         checked += 1
     return {'gltf_checked':checked,'shared_png_textures':len(pngs)}
