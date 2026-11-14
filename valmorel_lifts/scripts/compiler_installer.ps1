@@ -3,7 +3,8 @@
 [CmdletBinding()]
 param([string]$CommunityPath='C:\Users\anter\AppData\Local\Packages\Microsoft.Limitless_8wekyb3d8bbwe\LocalCache\Packages\Community',
       [string]$SdkPath='',
-      [switch]$BuildOnly)
+      [switch]$BuildOnly,
+      [switch]$InstallExisting)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $Root=(Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
@@ -63,11 +64,21 @@ try {
   if($Sdk -eq 'D:\RealEarth2024\build\tools\fspackagetool.exe') {
     Write-Warning 'Ancienne copie du compilateur utilisee; elle peut viser une installation WindowsApps perimee.'
   }
-  Call-Py 'scripts\prepare_sdk.py'
-  Call-Py 'scripts\prepare_placements.py'
-  if (Test-Path -LiteralPath $Built) { Remove-Item -LiteralPath $Built -Recurse -Force }
-  & $Sdk $Project '-rebuild' '-nopause'
-  if ($LASTEXITCODE -ne 0) { throw "Erreur SDK ($LASTEXITCODE) : si WindowsApps/FlightSimulator2024.exe introuvable, reparer Gaming Services et preferer le SDK officiel (pas la copie build/tools)." }
+  if (-not $InstallExisting) {
+    Call-Py 'scripts\prepare_sdk.py'
+    Call-Py 'scripts\prepare_placements.py'
+    if (Test-Path -LiteralPath $Built) { Remove-Item -LiteralPath $Built -Recurse -Force }
+    & $Sdk $Project '-rebuild' '-nopause'
+    $sdkExit=$LASTEXITCODE
+    if ($sdkExit -ne 0 -and $sdkExit -ne -2015035325) {
+      throw "SDK a echoue avec code $sdkExit. Installation annulee."
+    }
+    if ($sdkExit -eq -2015035325) {
+      Write-Warning 'La compilation peut avoir reussi, mais le lanceur Xbox a renvoye 0x87E50043. Validation structurelle obligatoire.'
+    }
+  } else {
+    Write-Warning 'Mode installation seule: utiliser uniquement apres Validation SUCCESS, 0 failed, sur la console SDK.'
+  }
   $deadline=(Get-Date).AddMinutes(6)
   $stable=0
   $last=''
@@ -95,6 +106,35 @@ try {
     if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {throw "Absent : $rel"}
     if ((Get-Item -LiteralPath $file).Length -ne [long]$entry.size) {throw "Taille incorrecte : $rel"}
   }
+  $compiledBgl=@(Get-ChildItem -LiteralPath $Built -Filter '*.bgl' -File -Recurse)
+  $compiledGlb=@(Get-ChildItem -LiteralPath $Built -Filter '*.glb' -File -Recurse)
+  $compiledKtx=@(Get-ChildItem -LiteralPath $Built -Filter '*.ktx2' -File -Recurse)
+  if($compiledKtx.Count -lt 1){throw 'Textures runtime KTX2 manquantes.'}
+  foreach($m in $compiledGlb) {
+    $fd=[IO.File]::OpenRead($m.FullName)
+    try{
+      if($fd.Length -lt 20){throw "GLB tronque: $($m.Name)"}
+      $h=New-Object byte[] 12; [void]$fd.Read($h,0,12)
+      if([Text.Encoding]::ASCII.GetString($h,0,4) -ne 'glTF' -or [BitConverter]::ToUInt32($h,8) -ne $fd.Length){throw "GLB invalide: $($m.Name)"}
+    }finally{$fd.Dispose()}
+  }
+  foreach($f in $compiledBgl) {
+    $fd=[IO.File]::OpenRead($f.FullName)
+    try{
+      if($fd.Length -lt 32){throw "BGL tronque: $($f.Name)"}
+      $h=New-Object byte[] 4;[void]$fd.Read($h,0,4)
+      if([BitConverter]::ToString($h) -ne '01-02-92-19'){throw "BGL invalide: $($f.Name)"}
+    }finally{$fd.Dispose()}
+  }
+  foreach($f in $compiledKtx) {
+    $fd=[IO.File]::OpenRead($f.FullName)
+    try{
+      if($fd.Length -lt 80){throw "KTX2 tronque: $($f.Name)"}
+      $h=New-Object byte[] 12;[void]$fd.Read($h,0,12)
+      if([BitConverter]::ToString($h) -ne 'AB-4B-54-58-20-32-30-BB-0D-0A-1A-0A'){throw "KTX2 invalide: $($f.Name)"}
+    }finally{$fd.Dispose()}
+  }
+  Write-Host "Verification independante: $($compiledGlb.Count) GLB, $($compiledBgl.Count) BGL, $($compiledKtx.Count) KTX2." -ForegroundColor Green
   if ($BuildOnly) {Write-Host 'Compilation seule terminee.'; exit 0}
   if (@(Get-Process -Name @('FlightSimulator2024','FlightSimulator') -ErrorAction SilentlyContinue).Count -gt 0) {throw 'FS2024 lance pendant le build.'}
   $id=[guid]::NewGuid().ToString('N').Substring(0,8)
