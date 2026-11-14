@@ -2,6 +2,7 @@
 # Build+install only own addon; never modify other scenery or old realearth-valmorel-hd.
 [CmdletBinding()]
 param([string]$CommunityPath='C:\Users\anter\AppData\Local\Packages\Microsoft.Limitless_8wekyb3d8bbwe\LocalCache\Packages\Community',
+      [string]$SdkPath='',
       [switch]$BuildOnly)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
@@ -28,17 +29,45 @@ try {
   if (@(Get-Process -Name @('FlightSimulator2024','FlightSimulator') -ErrorAction SilentlyContinue).Count -gt 0) { throw 'Fermer FS2024 avant compilation.' }
   if (-not (Test-Path -LiteralPath $CommunityPath -PathType Container)) { throw "Community absent: $CommunityPath" }
   if (-not (Test-Path -LiteralPath $Project -PathType Leaf)) { throw "Projet SDK manquant: $Project" }
-  $Sdk='D:\RealEarth2024\build\tools\fspackagetool.exe'
-  if (-not (Test-Path -LiteralPath $Sdk -PathType Leaf)) {
-    $sdkRoot=[Environment]::GetEnvironmentVariable('MSFS2024_SDK')
-    if ($sdkRoot) {$Sdk=Join-Path $sdkRoot 'Tools\bin\fspackagetool.exe'}
+  Write-Host 'Diagnostic Microsoft.Limitless (lecture seule)' -ForegroundColor Cyan
+  try {
+    $apps=@(Get-AppxPackage -Name 'Microsoft.Limitless*' -ErrorAction Stop)
+    foreach ($app in $apps) {
+      $exe=Join-Path $app.InstallLocation 'FlightSimulator2024.exe'
+      Write-Host "Appx version=$($app.Version); install=$($app.InstallLocation); exe accessible=$(Test-Path -LiteralPath $exe -PathType Leaf)"
+    }
+    if($apps.Count -eq 0){Write-Warning 'App FS2024 non inscrite pour cet utilisateur.'}
+  } catch {Write-Warning "Diagnostic Appx inaccessible: $($_.Exception.Message)"}
+  $Sdk=$null
+  if($SdkPath) {
+    if(-not (Test-Path -LiteralPath $SdkPath -PathType Leaf)){throw "SDK explicite introuvable: $SdkPath"}
+    $Sdk=$SdkPath
+  } else {
+    $candidates=@()
+    foreach ($key in @('MSFS2024_SDK','MSFS_SDK')) {
+      $sdkRoot=[Environment]::GetEnvironmentVariable($key)
+      if($sdkRoot){$candidates+=Join-Path $sdkRoot 'Tools\bin\fspackagetool.exe'}
+    }
+    $candidates+=@(
+      'C:\MSFS 2024 SDK\Tools\bin\fspackagetool.exe',
+      'D:\MSFS 2024 SDK\Tools\bin\fspackagetool.exe',
+      (Join-Path $env:ProgramFiles 'MSFS 2024 SDK\Tools\bin\fspackagetool.exe'),
+      'D:\RealEarth2024\build\tools\fspackagetool.exe'
+    )
+    foreach($candidate in ($candidates | Select-Object -Unique)) {
+      if(Test-Path -LiteralPath $candidate -PathType Leaf){$Sdk=$candidate;break}
+    }
   }
-  if (-not (Test-Path -LiteralPath $Sdk -PathType Leaf)) {throw 'SDK fspackagetool.exe introuvable (non redistribuable).'}
+  if(-not $Sdk){throw 'fspackagetool.exe introuvable. Installer le SDK officiel MSFS2024 ou passer -SdkPath.'}
+  Write-Host "SDK selectionne: $Sdk"
+  if($Sdk -eq 'D:\RealEarth2024\build\tools\fspackagetool.exe') {
+    Write-Warning 'Ancienne copie du compilateur utilisee; elle peut viser une installation WindowsApps perimee.'
+  }
   Call-Py 'scripts\prepare_sdk.py'
   Call-Py 'scripts\prepare_placements.py'
   if (Test-Path -LiteralPath $Built) { Remove-Item -LiteralPath $Built -Recurse -Force }
   & $Sdk $Project '-rebuild' '-nopause'
-  if ($LASTEXITCODE -ne 0) { throw "Erreur de compilation SDK ($LASTEXITCODE)" }
+  if ($LASTEXITCODE -ne 0) { throw "Erreur SDK ($LASTEXITCODE) : si WindowsApps/FlightSimulator2024.exe introuvable, reparer Gaming Services et preferer le SDK officiel (pas la copie build/tools)." }
   $deadline=(Get-Date).AddMinutes(6)
   $stable=0
   $last=''
