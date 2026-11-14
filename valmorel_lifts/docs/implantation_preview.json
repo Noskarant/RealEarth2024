@@ -1,0 +1,10 @@
+{
+  "validation": "PROVISIONAL_NOT_A_SURVEY",
+  "note": "Four station-preview objects only. No terrain, exclusions, pylons or floating cabins.",
+  "items": [
+    {"id":"planchamp-aval","model":"Planchamp_Gare_Aval","latitude":45.4609125,"longitude":6.4414422,"heading_deg":227.0,"altitude_agl_m":0,"snap_to_ground":true,"enabled":true},
+    {"id":"planchamp-amont","model":"Planchamp_Gare_Amont","latitude":45.44963,"longitude":6.42438,"heading_deg":47.0,"altitude_agl_m":0,"snap_to_ground":true,"enabled":true},
+    {"id":"pierrafort-aval","model":"Pierrafort_Gare_Aval","latitude":45.458987,"longitude":6.44331,"heading_deg":185.0,"altitude_agl_m":0,"snap_to_ground":true,"enabled":true},
+    {"id":"pierrafort-amont","model":"Pierrafort_Gare_Amont","latitude":45.4428,"longitude":6.44107,"heading_deg":5.0,"altitude_agl_m":0,"snap_to_ground":true,"enabled":true}
+  ]
+}
