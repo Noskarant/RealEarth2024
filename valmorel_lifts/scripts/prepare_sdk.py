@@ -78,12 +78,12 @@ def main():
             view = doc["bufferViews"][img["bufferView"]]
             start = view.get("byteOffset", 0)
             data = binary[start:start + view["byteLength"]]
-            if not data.startswith(b"\\x89PNG\\r\\n\\x1a\\n"):
+            if not data.startswith(b"\x89PNG\r\n\x1a\n"):
                 raise ValueError("Bad PNG")
             filename = "valmorel_" + name.lower() + "_" + str(i).zfill(2) + ".png"
             (tex / filename).write_bytes(data)
             (tex / (filename + ".xml")).write_text(
-                "<BitmapConfiguration>\\n<BitmapSlot>MTL_BITMAP_DECAL0</BitmapSlot>\\n</BitmapConfiguration>\\n", encoding="utf-8"
+                "<BitmapConfiguration>\n<BitmapSlot>MTL_BITMAP_DECAL0</BitmapSlot>\n</BitmapConfiguration>\n", encoding="utf-8"
             )
             img.pop("bufferView")
             img.pop("mimeType", None)
@@ -94,13 +94,13 @@ def main():
                     raise ValueError("Missing vertex normals in " + name)
         (MODEL / (prefix + ".bin")).write_bytes(binary)
         (MODEL / (prefix + ".gltf")).write_text(
-            json.dumps(doc, ensure_ascii=False, separators=(",", ":")) + "\\n", encoding="utf-8"
+            json.dumps(doc, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8"
         )
         (MODEL / (name + ".xml")).write_text(
-            '<?xml version="1.0" encoding="utf-8"?>\\n'
-            + '<ModelInfo version="1.1" guid="' + guid(name) + '">\\n'
-            + '<LODS><LOD minSize="0" ModelFile="' + prefix + '.gltf"/></LODS>\\n'
-            + '</ModelInfo>\\n', encoding="utf-8"
+            '<?xml version="1.0" encoding="utf-8"?>\n'
+            + '<ModelInfo version="1.1" guid="' + guid(name) + '">\n'
+            + '<LODS><LOD minSize="0" ModelFile="' + prefix + '.gltf"/></LODS>\n'
+            + '</ModelInfo>\n', encoding="utf-8"
         )
     print("SDK sources prepared:", len(ASSETS), "GLB models")
 
