@@ -81,6 +81,23 @@ def main():
             if not data.startswith(b"\x89PNG\r\n\x1a\n"):
                 raise ValueError("Bad PNG")
             filename = "valmorel_" + name.lower() + "_" + str(i).zfill(2) + ".png"
+            # MSFS 2024 requires texture width/height divisible by four.
+            # Three Blender logo atlases were 3935x1070 and are padded in
+            # the standalone ZIP to 3936x1072, preserving all source pixels.
+            width, height = struct.unpack_from(">II", data, 16)
+            if width < 8 or height < 8:
+                raise ValueError(f"Too-small texture: {filename} ({width}x{height})")
+            if width % 4 or height % 4:
+                override = ROOT / "assets" / "texture_overrides" / filename
+                if not override.is_file():
+                    raise FileNotFoundError(
+                        f"SDK invalid texture dimensions {width}x{height} for {filename}; missing corrected PNG: {override}"
+                    )
+                data = override.read_bytes()
+                neww, newh = struct.unpack_from(">II", data, 16)
+                if neww % 4 or newh % 4 or neww < width or newh < height:
+                    raise ValueError(f"Invalid corrected texture {filename}: {neww}x{newh}")
+                print(f"FIX bitmap dimensions: {filename}: {width}x{height} -> {neww}x{newh}")
             (tex / filename).write_bytes(data)
             (tex / (filename + ".xml")).write_text(
                 "<BitmapConfiguration>\n<BitmapSlot>MTL_BITMAP_DECAL0</BitmapSlot>\n</BitmapConfiguration>\n", encoding="utf-8"
