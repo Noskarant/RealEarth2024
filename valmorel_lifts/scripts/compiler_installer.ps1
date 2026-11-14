@@ -109,6 +109,18 @@ try {
   $compiledBgl=@(Get-ChildItem -LiteralPath $Built -Filter '*.bgl' -File -Recurse)
   $compiledGlb=@(Get-ChildItem -LiteralPath $Built -Filter '*.glb' -File -Recurse)
   $compiledKtx=@(Get-ChildItem -LiteralPath $Built -Filter '*.ktx2' -File -Recurse)
+  $modelLibBgl=@($compiledBgl | Where-Object { $_.FullName -match '[\\/]modellib[\\/]' })
+  $placementBgl=@($compiledBgl | Where-Object { $_.FullName -match '[\\/]scenery[\\/]valmorel[\\/]scenery[\\/]' })
+  if($modelLibBgl.Count -lt 1 -or $placementBgl.Count -lt 1){
+    foreach($item in $compiledBgl){ Write-Host "BGL trouve : $($item.FullName)" }
+    throw "BGL manquant : $($modelLibBgl.Count) ModelLib + $($placementBgl.Count) placements. Compilation invalide."
+  }
+  $sourceLib=Join-Path $Root 'project\PackageSources\Scenery\valmorel\modellib'
+  foreach($name in @('Planchamp_Gare_Aval','Planchamp_Gare_Amont','Planchamp_Cabine_Type_A','Planchamp_Pylone_Type','Pierrafort_Gare_Aval','Pierrafort_Gare_Amont','Pierrafort_Cabine_Type_A','Pierrafort_Pylone_Type')) {
+    foreach($suffix in @('.xml','_LOD00.gltf','_LOD00.bin')) {
+      if(-not (Test-Path -LiteralPath (Join-Path $sourceLib ($name+$suffix)) -PathType Leaf)){throw "Source manquante : $name$suffix"}
+    }
+  }
   if($compiledKtx.Count -lt 1){throw 'Textures runtime KTX2 manquantes.'}
   foreach($m in $compiledGlb) {
     $fd=[IO.File]::OpenRead($m.FullName)
